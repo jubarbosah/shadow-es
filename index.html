@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>Shadow ES — corretor de espanhol</title>
+  <style>
+    :root{
+      --bg:#0f172a; --card:#1e293b; --muted:#94a3b8; --text:#f1f5f9;
+      --accent:#38bdf8; --ok:#22c55e; --err:#f87171; --line:#334155;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;height:100%}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      display:flex;flex-direction:column;min-height:100dvh;
+      padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
+    }
+    header{display:flex;align-items:center;justify-content:space-between;padding:12px 2px 6px}
+    header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.3px}
+    .tabs{display:flex;gap:6px}
+    .tab{background:var(--line);color:var(--muted);border:none;border-radius:999px;padding:7px 14px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+    .tab.active{background:var(--accent);color:#04212e}
+    main{flex:1;display:flex;flex-direction:column;max-width:560px;width:100%;margin:0 auto}
+    .view{display:none;flex:1;flex-direction:column}
+    .view.active{display:flex}
+
+    /* ---- Praticar ---- */
+    #practice{justify-content:center;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 18px}
+    .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+    .es{font-size:28px;font-weight:800;line-height:1.25}
+    .pt{color:var(--muted);font-size:15px;margin-top:8px}
+    .note{color:#fbbf24;font-size:14px;margin-top:10px;min-height:0}
+    .said{color:var(--muted);font-size:13px;font-style:italic;margin-top:6px}
+    .status{text-align:center;font-size:17px;font-weight:700;min-height:26px}
+    .status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.info{color:var(--accent)}
+    .placeholder{text-align:center;color:var(--muted);font-size:15px;padding:10px 6px}
+    .controls{display:flex;gap:10px}
+    button.btn{font:inherit;border:none;border-radius:16px;padding:16px;cursor:pointer;font-weight:800;color:var(--text);background:var(--line);flex:1;transition:transform .05s}
+    button.btn:active{transform:scale(.97)}
+    .mic{background:var(--accent);color:#04212e;font-size:18px;flex:2}
+    .mic.listening{background:var(--err);color:#2a0808;animation:pulse 1s infinite}
+    .ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+    @keyframes pulse{50%{opacity:.65}}
+
+    /* ---- Cards ---- */
+    #cards{gap:10px;padding-top:6px;overflow:auto}
+    .daygroup{margin-bottom:6px}
+    .dayhdr{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:12px 2px 6px}
+    .fc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .fc .txt{flex:1;min-width:0}
+    .fc .fes{font-weight:700;font-size:16px}
+    .fc .fpt{color:var(--muted);font-size:13px;margin-top:2px}
+    .fc .play{background:var(--line);border:none;color:var(--text);border-radius:10px;padding:10px 12px;font-size:16px;cursor:pointer;flex:none}
+    .empty{text-align:center;color:var(--muted);padding:40px 10px}
+    footer{color:var(--muted);font-size:12px;text-align:center;padding:8px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Shadow&nbsp;ES 🇪🇸</h1>
+    <div class="tabs">
+      <button class="tab active" id="tabPractice">Praticar</button>
+      <button class="tab" id="tabCards">Cards <span id="cardCount">0</span></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ PRATICAR ============ -->
+    <section class="view active" id="practice">
+      <div class="card" id="resultCard">
+        <div class="placeholder" id="placeholder">
+          Toque em <b>Falar</b> e diga, em espanhol, a frase da sua dúvida.<br>
+          Eu te devolvo a forma correta pra você repetir. 🎧
+        </div>
+        <div id="result" style="display:none">
+          <div class="label">Forma correta</div>
+          <div class="es" id="es">—</div>
+          <div class="pt" id="pt"></div>
+          <div class="note" id="note"></div>
+          <div class="said" id="said"></div>
+        </div>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="controls">
+        <button class="btn ghost" id="listen">🔊 Ouvir</button>
+        <button class="btn mic" id="mic">🎤 Falar</button>
+      </div>
+      <div class="controls">
+        <button class="btn ghost" id="repeat" style="display:none">🎤 Repetir (shadowing)</button>
+        <button class="btn ghost" id="newp" style="display:none">＋ Nova frase</button>
+      </div>
+    </section>
+
+    <!-- ============ CARDS ============ -->
+    <section class="view" id="cards"></section>
+  </main>
+
+  <footer id="foot">v1 · fala livre → correção → shadowing</footer>
+
+  <script>
+  // ================== CONFIG ==================
+  // Cole aqui a URL do seu Cloudflare Worker (algo terminando em .workers.dev)
+  const API_URL = "COLE_A_URL_DO_SEU_WORKER_AQUI";
+  // ============================================
+
+  const $ = id => document.getElementById(id);
+  let current = null;          // {corrected, translation_pt, note_pt}
+  let recMode = null;          // 'capture' | 'shadow'
+  let listening = false;
+
+  // -------- Voz (TTS) --------
+  let esVoice = null;
+  function pickVoice(){
+    const vs = speechSynthesis.getVoices();
+    esVoice = vs.find(v=>/es-ES/i.test(v.lang)) || vs.find(v=>/^es/i.test(v.lang)) || null;
+  }
+  if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  function speak(text, rate=0.95){
+    if(!('speechSynthesis' in window) || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang='es-ES'; u.rate=rate; if(esVoice) u.voice=esVoice;
+    speechSynthesis.speak(u);
+  }
+
+  // -------- Comparação tolerante (pro shadowing) --------
+  function norm(s){
+    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .replace(/[¿¡?!.,;:"'()]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function lev(a,b){
+    const m=a.length,n=b.length,d=Array.from({length:m+1},(_,x)=>[x,...Array(n).fill(0)]);
+    for(let j=0;j<=n;j++)d[0][j]=j;
+    for(let x=1;x<=m;x++)for(let y=1;y<=n;y++)
+      d[x][y]=Math.min(d[x-1][y]+1,d[x][y-1]+1,d[x-1][y-1]+(a[x-1]===b[y-1]?0:1));
+    return d[m][n];
+  }
+  function sim(a,b){a=norm(a);b=norm(b);if(!a||!b)return 0;return 1-lev(a,b)/Math.max(a.length,b.length);}
+
+  // -------- Reconhecimento (STT) --------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec=null;
+  if(SR){
+    rec=new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=4;
+    rec.onresult = e => {
+      const alts=[...e.results[0]].map(r=>r.transcript);
+      if(recMode==='capture') onCaptured(alts[0]||'');
+      else onShadow(alts);
+    };
+    rec.onerror = e => {
+      stopMic();
+      if(e.error==='no-speech') setStatus('info','Não ouvi 👂 — toque e fale de novo.');
+      else if(e.error==='not-allowed') setStatus('err','Libere o microfone nas permissões do site.');
+      else setStatus('info','Tente de novo.');
+    };
+    rec.onend = () => stopMic();
+  }
+  function startMic(mode){
+    if(!rec){ setStatus('err','Use o Chrome no Android (este navegador não reconhece voz).'); return; }
+    recMode=mode; listening=true;
+    $('mic').classList.add('listening'); $('mic').textContent='● Ouvindo…';
+    setStatus('info', mode==='capture' ? 'Fale sua frase…' : 'Repita a frase…');
+    try{ rec.start(); }catch(_){}
+  }
+  function stopMic(){
+    listening=false;
+    $('mic').classList.remove('listening'); $('mic').textContent='🎤 Falar';
+    try{ rec && rec.stop(); }catch(_){}
+  }
+
+  // -------- Fluxo: capturou fala livre → manda pro Gemini --------
+  async function onCaptured(text){
+    stopMic();
+    if(!text){ setStatus('info','Não entendi, tente de novo.'); return; }
+    if(API_URL.includes('COLE_A_URL')){
+      setStatus('err','Falta configurar a URL do Worker no index.html.'); return;
+    }
+    setStatus('info','Pensando… 🤔');
+    $('said').textContent = 'Você disse: “'+text+'”';
+    try{
+      const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})});
+      const res = await r.json();
+      if(res.error){ setStatus('err','Erro: '+res.error); return; }
+      showResult(res, text);
+    }catch(e){
+      setStatus('err','Sem conexão com o cérebro (Worker). Confira a internet/URL.');
+    }
+  }
+
+  function showResult(res, saidText){
+    current = res;
+    $('placeholder').style.display='none';
+    $('result').style.display='block';
+    $('es').textContent = res.corrected;
+    $('pt').textContent = res.translation_pt || '';
+    $('note').textContent = res.note_pt || '';
+    $('said').textContent = saidText ? 'Você disse: “'+saidText+'”' : '';
+    setStatus(res.wasCorrect ? 'ok' : 'info', res.wasCorrect ? '¡Perfecto! 🎉 Repita pra fixar.' : 'Escute e repita 👇');
+    $('repeat').style.display='block'; $('newp').style.display='block';
+    speak(res.corrected, 0.95);
+    saveCard(res);
+  }
+
+  // -------- Shadowing: comparou a repetição com a frase correta --------
+  function onShadow(alts){
+    stopMic();
+    if(!current) return;
+    let best=0; for(const a of alts){ best=Math.max(best, sim(a, current.corrected)); }
+    if(best>=0.80){ setStatus('ok','¡Muy bien! 🎉'); speak(current.corrected,0.98); }
+    else { setStatus('err','Casi… escuta e repete.'); speak(current.corrected, 0.85); }
+  }
+
+  function setStatus(kind,msg){ $('status').className='status '+kind; $('status').textContent=msg; }
+  function resetPractice(){
+    current=null; $('result').style.display='none'; $('placeholder').style.display='block';
+    $('repeat').style.display='none'; $('newp').style.display='none'; setStatus('','');
+  }
+
+  // ================== FLASHCARDS (no aparelho) ==================
+  const KEY='shadow_es_cards';
+  function loadCards(){ try{ return JSON.parse(localStorage.getItem(KEY))||[]; }catch{ return []; } }
+  function saveCard(res){
+    const cards=loadCards();
+    const es=res.corrected.trim();
+    const today=new Date().toISOString().slice(0,10);
+    // evita duplicar a mesma frase no mesmo dia
+    if(cards.some(c=>c.es===es && c.day===today)) { updateCount(); return; }
+    cards.unshift({es, pt:res.translation_pt||'', note:res.note_pt||'', day:today, ts:Date.now()});
+    localStorage.setItem(KEY, JSON.stringify(cards.slice(0,500)));
+    updateCount();
+  }
+  function updateCount(){ $('cardCount').textContent = loadCards().length; }
+
+  function renderCards(){
+    const cards=loadCards(); const box=$('cards');
+    if(!cards.length){ box.innerHTML='<div class="empty">Ainda não há cards.<br>Pratique uma frase que ela aparece aqui pra revisar. 😉</div>'; return; }
+    const groups={};
+    for(const c of cards){ (groups[c.day]=groups[c.day]||[]).push(c); }
+    const fmt = d => { const t=new Date().toISOString().slice(0,10); const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+      if(d===t) return 'Hoje'; if(d===y) return 'Ontem';
+      const [Y,M,D]=d.split('-'); return `${D}/${M}/${Y}`; };
+    let html='';
+    for(const day of Object.keys(groups)){
+      html += `<div class="daygroup"><div class="dayhdr">${fmt(day)} · ${groups[day].length}</div>`;
+      for(const c of groups[day]){
+        html += `<div class="fc"><div class="txt"><div class="fes"></div><div class="fpt"></div></div><button class="play">🔊</button></div>`;
+      }
+      html += `</div>`;
+    }
+    box.innerHTML=html;
+    // preenche com textContent (evita HTML injection) e liga o play
+    let i=0;
+    for(const day of Object.keys(groups)){
+      for(const c of groups[day]){
+        const el=box.querySelectorAll('.fc')[i++];
+        el.querySelector('.fes').textContent=c.es;
+        el.querySelector('.fpt').textContent=c.pt;
+        el.querySelector('.play').onclick=()=>speak(c.es,0.95);
+        el.querySelector('.txt').onclick=()=>speak(c.es,0.95);
+      }
+    }
+  }
+
+  // ================== Navegação ==================
+  function show(view){
+    const p = view==='practice';
+    $('practice').classList.toggle('active',p); $('cards').classList.toggle('active',!p);
+    $('tabPractice').classList.toggle('active',p); $('tabCards').classList.toggle('active',!p);
+    if(!p) renderCards();
+  }
+
+  // ================== Eventos ==================
+  $('mic').onclick    = ()=> listening ? stopMic() : startMic('capture');
+  $('listen').onclick = ()=> current ? speak(current.corrected,0.9) : setStatus('info','Fale uma frase primeiro.');
+  $('repeat').onclick = ()=> startMic('shadow');
+  $('newp').onclick   = ()=> resetPractice();
+  $('tabPractice').onclick = ()=> show('practice');
+  $('tabCards').onclick    = ()=> show('cards');
+  if(!SR){ $('foot').innerHTML='⚠️ Sem reconhecimento de voz aqui. Abra no <b>Chrome (Android)</b>.'; }
+  updateCount();
+
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  </script>
+</body>
+</html>

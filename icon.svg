@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <circle cx="256" cy="256" r="150" fill="#38bdf8" opacity="0.15"/>
+  <text x="50%" y="52%" text-anchor="middle" dominant-baseline="central"
+        font-family="system-ui,Segoe UI,Roboto,sans-serif" font-weight="800"
+        font-size="230" fill="#38bdf8">ñ</text>
+  <rect x="176" y="384" width="160" height="26" rx="13" fill="#f87171"/>
+</svg>
