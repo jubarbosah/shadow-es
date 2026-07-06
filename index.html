@@ -11,7 +11,7 @@
   <style>
     :root{
       --bg:#0f172a; --card:#1e293b; --muted:#94a3b8; --text:#f1f5f9;
-      --accent:#38bdf8; --ok:#22c55e; --err:#f87171; --line:#334155;
+      --accent:#38bdf8; --ok:#22c55e; --err:#f87171; --line:#334155; --gold:#fbbf24;
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;height:100%}
@@ -29,36 +29,48 @@
     main{flex:1;display:flex;flex-direction:column;max-width:560px;width:100%;margin:0 auto}
     .view{display:none;flex:1;flex-direction:column}
     .view.active{display:flex}
+    #practice,#reviewPanel{justify-content:center;gap:14px}
+    #practice{flex:1;justify-content:center}
 
-    /* ---- Praticar ---- */
-    #practice{justify-content:center;gap:16px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 18px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 18px}
     .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
-    .es{font-size:28px;font-weight:800;line-height:1.25}
+    .es{font-size:27px;font-weight:800;line-height:1.25}
     .pt{color:var(--muted);font-size:15px;margin-top:8px}
-    .note{color:#fbbf24;font-size:14px;margin-top:10px;min-height:0}
+    .note{color:var(--gold);font-size:14px;margin-top:10px}
     .said{color:var(--muted);font-size:13px;font-style:italic;margin-top:6px}
-    .status{text-align:center;font-size:17px;font-weight:700;min-height:26px}
+    .status{text-align:center;font-size:17px;font-weight:700;min-height:24px}
     .status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.info{color:var(--accent)}
-    .placeholder{text-align:center;color:var(--muted);font-size:15px;padding:10px 6px}
+    .placeholder{text-align:center;color:var(--muted);font-size:15px;padding:8px 6px;line-height:1.5}
     .controls{display:flex;gap:10px}
-    button.btn{font:inherit;border:none;border-radius:16px;padding:16px;cursor:pointer;font-weight:800;color:var(--text);background:var(--line);flex:1;transition:transform .05s}
+    button.btn{font:inherit;border:none;border-radius:16px;padding:15px;cursor:pointer;font-weight:800;color:var(--text);background:var(--line);flex:1;transition:transform .05s}
     button.btn:active{transform:scale(.97)}
+    button.btn:disabled{opacity:.4}
     .mic{background:var(--accent);color:#04212e;font-size:18px;flex:2}
     .mic.listening{background:var(--err);color:#2a0808;animation:pulse 1s infinite}
     .ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+    .small{font-size:13px;padding:11px}
     @keyframes pulse{50%{opacity:.65}}
 
-    /* ---- Cards ---- */
-    #cards{gap:10px;padding-top:6px;overflow:auto}
-    .daygroup{margin-bottom:6px}
+    /* explicação */
+    #explainBox{display:none;margin-top:2px}
+    #explainBox .ex{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;gap:8px;align-items:center}
+    #explainBox .ex .t{flex:1}
+    #explainBox .ex .ees{font-weight:700}
+    #explainBox .ex .ept{color:var(--muted);font-size:13px}
+    #explainBox .ex button{background:var(--line);border:none;color:var(--text);border-radius:8px;padding:8px 10px;cursor:pointer}
+
+    /* cards */
+    #cardList{overflow:auto}
     .dayhdr{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:12px 2px 6px}
-    .fc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .fc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;display:flex;align-items:center;gap:8px;margin-bottom:8px}
     .fc .txt{flex:1;min-width:0}
-    .fc .fes{font-weight:700;font-size:16px}
+    .fc .fes{font-weight:700;font-size:15px}
     .fc .fpt{color:var(--muted);font-size:13px;margin-top:2px}
-    .fc .play{background:var(--line);border:none;color:var(--text);border-radius:10px;padding:10px 12px;font-size:16px;cursor:pointer;flex:none}
-    .empty{text-align:center;color:var(--muted);padding:40px 10px}
+    .fc .due{font-size:11px;color:var(--muted);margin-top:3px}
+    .fc button{background:var(--line);border:none;color:var(--text);border-radius:10px;padding:9px 11px;font-size:15px;cursor:pointer;flex:none}
+    .empty{text-align:center;color:var(--muted);padding:30px 10px}
+    .reviewbar{background:linear-gradient(90deg,#0ea5e9,#38bdf8);color:#04212e;border:none;border-radius:16px;padding:16px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;width:100%;margin:8px 0 12px}
+    .reviewbar.none{background:var(--card);color:var(--muted);border:1px solid var(--line);cursor:default}
     footer{color:var(--muted);font-size:12px;text-align:center;padding:8px}
   </style>
 </head>
@@ -85,6 +97,10 @@
           <div class="pt" id="pt"></div>
           <div class="note" id="note"></div>
           <div class="said" id="said"></div>
+          <div id="explainBox">
+            <div class="note" id="explanation" style="color:var(--accent)"></div>
+            <div id="examples"></div>
+          </div>
         </div>
       </div>
 
@@ -95,199 +111,260 @@
         <button class="btn mic" id="mic">🎤 Falar</button>
       </div>
       <div class="controls">
-        <button class="btn ghost" id="repeat" style="display:none">🎤 Repetir (shadowing)</button>
-        <button class="btn ghost" id="newp" style="display:none">＋ Nova frase</button>
+        <button class="btn ghost small" id="repeat" style="display:none">🎤 Repetir</button>
+        <button class="btn ghost small" id="why" style="display:none">🤔 Por quê?</button>
+        <button class="btn ghost small" id="newp" style="display:none">＋ Nova</button>
       </div>
     </section>
 
     <!-- ============ CARDS ============ -->
-    <section class="view" id="cards"></section>
+    <section class="view" id="cards">
+      <button class="reviewbar" id="reviewBar"></button>
+      <div id="cardList"></div>
+
+      <!-- painel de revisão -->
+      <div id="reviewPanel" style="display:none">
+        <div class="card">
+          <div class="label">Revisão · <span id="rvLeft">0</span> restantes</div>
+          <div class="pt" id="rvPt" style="font-size:17px;color:var(--text)"></div>
+          <div class="es" id="rvEs" style="filter:blur(8px);margin-top:10px">—</div>
+          <div class="note" id="rvNote"></div>
+        </div>
+        <div class="status" id="rvStatus"></div>
+        <div class="controls">
+          <button class="btn ghost" id="rvShow">🔊 Ouvir & ver</button>
+          <button class="btn mic" id="rvRepeat">🎤 Repetir</button>
+        </div>
+        <div class="controls" id="rvGrades" style="display:none">
+          <button class="btn small" id="rvAgain" style="color:var(--err)">De novo</button>
+          <button class="btn small" id="rvGood">Bom</button>
+          <button class="btn small" id="rvEasy" style="color:var(--ok)">Fácil</button>
+        </div>
+        <div class="controls"><button class="btn ghost small" id="rvQuit">Sair da revisão</button></div>
+      </div>
+    </section>
   </main>
 
-  <footer id="foot">v1 · fala livre → correção → shadowing</footer>
+  <footer id="foot">v1 · fala livre → correção → shadowing → revisão</footer>
 
   <script>
-  // ================== CONFIG ==================
-  // Cole aqui a URL do seu Cloudflare Worker (algo terminando em .workers.dev)
   const API_URL = "https://shadow-es.juniaclourenco.workers.dev";
-  // ============================================
-
   const $ = id => document.getElementById(id);
-  let current = null;          // {corrected, translation_pt, note_pt}
-  let recMode = null;          // 'capture' | 'shadow'
+  const DAY = 86400000;
+  let current = null;                 // resultado atual (praticar)
+  let recMode = null;                 // 'capture' | 'shadow'
   let listening = false;
+  let shadowTarget=null, shadowStatusEl=null, shadowMicBtn=null;
 
   // -------- Voz (TTS) --------
-  let esVoice = null;
-  function pickVoice(){
-    const vs = speechSynthesis.getVoices();
-    esVoice = vs.find(v=>/es-ES/i.test(v.lang)) || vs.find(v=>/^es/i.test(v.lang)) || null;
-  }
-  if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-  function speak(text, rate=0.95){
-    if(!('speechSynthesis' in window) || !text) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang='es-ES'; u.rate=rate; if(esVoice) u.voice=esVoice;
-    speechSynthesis.speak(u);
-  }
+  let esVoice=null;
+  function pickVoice(){ const vs=speechSynthesis.getVoices(); esVoice=vs.find(v=>/es-ES/i.test(v.lang))||vs.find(v=>/^es/i.test(v.lang))||null; }
+  if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+  function speak(text, rate=0.95){ if(!('speechSynthesis'in window)||!text)return; speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text); u.lang='es-ES'; u.rate=rate; if(esVoice)u.voice=esVoice; speechSynthesis.speak(u); }
 
-  // -------- Comparação tolerante (pro shadowing) --------
-  function norm(s){
-    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
-      .replace(/[¿¡?!.,;:"'()]/g,' ').replace(/\s+/g,' ').trim();
-  }
-  function lev(a,b){
-    const m=a.length,n=b.length,d=Array.from({length:m+1},(_,x)=>[x,...Array(n).fill(0)]);
-    for(let j=0;j<=n;j++)d[0][j]=j;
-    for(let x=1;x<=m;x++)for(let y=1;y<=n;y++)
-      d[x][y]=Math.min(d[x-1][y]+1,d[x][y-1]+1,d[x-1][y-1]+(a[x-1]===b[y-1]?0:1));
-    return d[m][n];
-  }
-  function sim(a,b){a=norm(a);b=norm(b);if(!a||!b)return 0;return 1-lev(a,b)/Math.max(a.length,b.length);}
+  // -------- Comparação tolerante --------
+  function norm(s){ return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[¿¡?!.,;:"'()]/g,' ').replace(/\s+/g,' ').trim(); }
+  function lev(a,b){ const m=a.length,n=b.length,d=Array.from({length:m+1},(_,x)=>[x,...Array(n).fill(0)]);
+    for(let j=0;j<=n;j++)d[0][j]=j; for(let x=1;x<=m;x++)for(let y=1;y<=n;y++)d[x][y]=Math.min(d[x-1][y]+1,d[x][y-1]+1,d[x-1][y-1]+(a[x-1]===b[y-1]?0:1)); return d[m][n]; }
+  function sim(a,b){ a=norm(a);b=norm(b); if(!a||!b)return 0; return 1-lev(a,b)/Math.max(a.length,b.length); }
 
-  // -------- Reconhecimento (STT) --------
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // -------- Reconhecimento --------
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
   let rec=null;
   if(SR){
     rec=new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=4;
-    rec.onresult = e => {
-      const alts=[...e.results[0]].map(r=>r.transcript);
-      if(recMode==='capture') onCaptured(alts[0]||'');
-      else onShadow(alts);
-    };
-    rec.onerror = e => {
-      stopMic();
-      if(e.error==='no-speech') setStatus('info','Não ouvi 👂 — toque e fale de novo.');
-      else if(e.error==='not-allowed') setStatus('err','Libere o microfone nas permissões do site.');
-      else setStatus('info','Tente de novo.');
-    };
+    rec.onresult = e => { const alts=[...e.results[0]].map(r=>r.transcript);
+      if(recMode==='capture') onCaptured(alts[0]||''); else onShadow(alts); };
+    rec.onerror = e => { stopMic();
+      const el=shadowStatusEl||$('status');
+      if(e.error==='no-speech') setEl(el,'info','Não ouvi 👂 — toque e fale de novo.');
+      else if(e.error==='not-allowed') setEl(el,'err','Libere o microfone nas permissões do site.');
+      else setEl(el,'info','Tente de novo.'); };
     rec.onend = () => stopMic();
   }
-  function startMic(mode){
-    if(!rec){ setStatus('err','Use o Chrome no Android (este navegador não reconhece voz).'); return; }
-    recMode=mode; listening=true;
-    $('mic').classList.add('listening'); $('mic').textContent='● Ouvindo…';
-    setStatus('info', mode==='capture' ? 'Fale sua frase…' : 'Repita a frase…');
+  function startMic(mode, opts={}){
+    if(!rec){ setEl($('status'),'err','Use o Chrome no Android (sem reconhecimento de voz aqui).'); return; }
+    recMode=mode; shadowTarget=opts.target||null; shadowStatusEl=opts.statusEl||null; shadowMicBtn=opts.micBtn||$('mic');
+    listening=true; shadowMicBtn.classList.add('listening'); shadowMicBtn.dataset.old=shadowMicBtn.textContent; shadowMicBtn.textContent='● Ouvindo…';
+    setEl(shadowStatusEl||$('status'),'info', mode==='capture'?'Fale sua frase…':'Repita a frase…');
     try{ rec.start(); }catch(_){}
   }
-  function stopMic(){
-    listening=false;
-    $('mic').classList.remove('listening'); $('mic').textContent='🎤 Falar';
-    try{ rec && rec.stop(); }catch(_){}
-  }
+  function stopMic(){ listening=false; const b=shadowMicBtn||$('mic'); b.classList.remove('listening'); if(b.dataset.old)b.textContent=b.dataset.old; try{rec&&rec.stop();}catch(_){} }
+  function onShadow(alts){ stopMic(); if(!shadowTarget)return; let best=0; for(const a of alts)best=Math.max(best,sim(a,shadowTarget));
+    const el=shadowStatusEl||$('status');
+    if(best>=0.80){ setEl(el,'ok','¡Muy bien! 🎉'); speak(shadowTarget,0.98); } else { setEl(el,'err','Casi… escuta e repete.'); speak(shadowTarget,0.85); } }
 
-  // -------- Fluxo: capturou fala livre → manda pro Gemini --------
+  function setEl(el,kind,msg){ el.className='status '+kind; el.textContent=msg; }
+
+  // ================== PRATICAR ==================
   async function onCaptured(text){
     stopMic();
-    if(!text){ setStatus('info','Não entendi, tente de novo.'); return; }
-    if(API_URL.includes('COLE_A_URL')){
-      setStatus('err','Falta configurar a URL do Worker no index.html.'); return;
-    }
-    setStatus('info','Pensando… 🤔');
-    $('said').textContent = 'Você disse: “'+text+'”';
+    if(!text){ setEl($('status'),'info','Não entendi, tente de novo.'); return; }
+    setEl($('status'),'info','Pensando… 🤔'); $('said').textContent='Você disse: “'+text+'”';
     try{
-      const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})});
-      const res = await r.json();
-      if(res.error){ setStatus('err','Erro: '+res.error); return; }
-      showResult(res, text);
-    }catch(e){
-      setStatus('err','Sem conexão com o cérebro (Worker). Confira a internet/URL.');
-    }
+      const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'correct',text})});
+      const res=await r.json();
+      if(res.error){ setEl($('status'),'err','Erro: '+res.error); return; }
+      showResult(res,text);
+    }catch(e){ setEl($('status'),'err','Sem conexão com o cérebro (Worker).'); }
   }
-
   function showResult(res, saidText){
-    current = res;
-    $('placeholder').style.display='none';
-    $('result').style.display='block';
-    $('es').textContent = res.corrected;
-    $('pt').textContent = res.translation_pt || '';
-    $('note').textContent = res.note_pt || '';
-    $('said').textContent = saidText ? 'Você disse: “'+saidText+'”' : '';
-    setStatus(res.wasCorrect ? 'ok' : 'info', res.wasCorrect ? '¡Perfecto! 🎉 Repita pra fixar.' : 'Escute e repita 👇');
-    $('repeat').style.display='block'; $('newp').style.display='block';
-    speak(res.corrected, 0.95);
-    saveCard(res);
+    current=res;
+    $('placeholder').style.display='none'; $('result').style.display='block';
+    $('es').textContent=res.corrected; $('pt').textContent=res.translation_pt||''; $('note').textContent=res.note_pt||'';
+    $('said').textContent=saidText?'Você disse: “'+saidText+'”':'';
+    $('explainBox').style.display='none'; $('explanation').textContent=''; $('examples').innerHTML='';
+    setEl($('status'),res.wasCorrect?'ok':'info',res.wasCorrect?'¡Perfecto! 🎉 Repita pra fixar.':'Escute e repita 👇');
+    $('repeat').style.display='block'; $('why').style.display='block'; $('newp').style.display='block';
+    speak(res.corrected,0.95); saveCard(res); updateCount();
   }
-
-  // -------- Shadowing: comparou a repetição com a frase correta --------
-  function onShadow(alts){
-    stopMic();
-    if(!current) return;
-    let best=0; for(const a of alts){ best=Math.max(best, sim(a, current.corrected)); }
-    if(best>=0.80){ setStatus('ok','¡Muy bien! 🎉'); speak(current.corrected,0.98); }
-    else { setStatus('err','Casi… escuta e repete.'); speak(current.corrected, 0.85); }
+  async function explainCurrent(){
+    if(!current)return;
+    $('explainBox').style.display='block'; $('explanation').textContent='Buscando explicação… 🤔'; $('examples').innerHTML='';
+    try{
+      const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'explain',phrase:current.corrected})});
+      const res=await r.json();
+      if(res.error){ $('explanation').textContent='Erro: '+res.error; return; }
+      $('explanation').textContent=res.explanation_pt||'';
+      const box=$('examples'); box.innerHTML='';
+      (res.examples||[]).forEach(ex=>{
+        const d=document.createElement('div'); d.className='ex';
+        const t=document.createElement('div'); t.className='t';
+        const a=document.createElement('div'); a.className='ees'; a.textContent=ex.es;
+        const b=document.createElement('div'); b.className='ept'; b.textContent=ex.pt;
+        t.appendChild(a); t.appendChild(b);
+        const btn=document.createElement('button'); btn.textContent='🔊'; btn.onclick=()=>speak(ex.es,0.95);
+        d.appendChild(t); d.appendChild(btn); box.appendChild(d);
+      });
+    }catch(e){ $('explanation').textContent='Sem conexão para explicar.'; }
   }
+  function resetPractice(){ current=null; $('result').style.display='none'; $('placeholder').style.display='block';
+    $('repeat').style.display='none'; $('why').style.display='none'; $('newp').style.display='none'; setEl($('status'),'',''); }
 
-  function setStatus(kind,msg){ $('status').className='status '+kind; $('status').textContent=msg; }
-  function resetPractice(){
-    current=null; $('result').style.display='none'; $('placeholder').style.display='block';
-    $('repeat').style.display='none'; $('newp').style.display='none'; setStatus('','');
-  }
-
-  // ================== FLASHCARDS (no aparelho) ==================
+  // ================== FLASHCARDS + REVISÃO ESPAÇADA ==================
   const KEY='shadow_es_cards';
-  function loadCards(){ try{ return JSON.parse(localStorage.getItem(KEY))||[]; }catch{ return []; } }
+  function loadCards(){ let a; try{a=JSON.parse(localStorage.getItem(KEY))||[]}catch{a=[]}
+    let changed=false;
+    for(const c of a){ if(!c.ts){c.ts=Date.now();changed=true;} if(!c.srs){c.srs={due:c.ts,interval:0,ease:2.5,reps:0};changed=true;} }
+    if(changed) localStorage.setItem(KEY,JSON.stringify(a));
+    return a; }
+  function persistCards(cards){ localStorage.setItem(KEY,JSON.stringify(cards.slice(0,1000))); }
   function saveCard(res){
-    const cards=loadCards();
-    const es=res.corrected.trim();
-    const today=new Date().toISOString().slice(0,10);
-    // evita duplicar a mesma frase no mesmo dia
-    if(cards.some(c=>c.es===es && c.day===today)) { updateCount(); return; }
-    cards.unshift({es, pt:res.translation_pt||'', note:res.note_pt||'', day:today, ts:Date.now()});
-    localStorage.setItem(KEY, JSON.stringify(cards.slice(0,500)));
-    updateCount();
+    const cards=loadCards(); const es=res.corrected.trim(); const today=new Date().toISOString().slice(0,10);
+    if(cards.some(c=>c.es===es && c.day===today)) return;
+    const now=Date.now();
+    cards.unshift({es,pt:res.translation_pt||'',note:res.note_pt||'',day:today,ts:now,srs:{due:now,interval:0,ease:2.5,reps:0}});
+    persistCards(cards);
   }
-  function updateCount(){ $('cardCount').textContent = loadCards().length; }
+  function dueCount(){ const now=Date.now(); return loadCards().filter(c=>c.srs.due<=now).length; }
+  function updateCount(){ $('cardCount').textContent=loadCards().length; }
+
+  // SM-2 simplificado
+  function schedule(card,grade){
+    const s=card.srs, now=Date.now();
+    if(grade==='again'){ s.reps=0; s.interval=0; s.due=now+10*60000; return; }
+    s.reps=(s.reps||0)+1;
+    if(s.reps===1) s.interval = grade==='easy'?3:1;
+    else if(s.reps===2) s.interval = grade==='easy'?7:3;
+    else s.interval = Math.max(1, Math.round(s.interval*(grade==='easy'?s.ease+0.3:s.ease)));
+    if(grade==='easy') s.ease=Math.min(3.0,(s.ease||2.5)+0.1);
+    s.due = now + s.interval*DAY;
+  }
 
   function renderCards(){
-    const cards=loadCards(); const box=$('cards');
-    if(!cards.length){ box.innerHTML='<div class="empty">Ainda não há cards.<br>Pratique uma frase que ela aparece aqui pra revisar. 😉</div>'; return; }
-    const groups={};
-    for(const c of cards){ (groups[c.day]=groups[c.day]||[]).push(c); }
-    const fmt = d => { const t=new Date().toISOString().slice(0,10); const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
-      if(d===t) return 'Hoje'; if(d===y) return 'Ontem';
-      const [Y,M,D]=d.split('-'); return `${D}/${M}/${Y}`; };
-    let html='';
+    updateCount();
+    const n=dueCount(); const bar=$('reviewBar');
+    if(n>0){ bar.className='reviewbar'; bar.textContent='▶ Revisar agora ('+n+')'; bar.disabled=false; }
+    else   { bar.className='reviewbar none'; bar.textContent='✅ Nada para revisar por enquanto'; bar.disabled=true; }
+
+    const cards=loadCards(); const box=$('cardList');
+    if(!cards.length){ box.innerHTML='<div class="empty">Ainda não há cards.<br>Pratique uma frase que ela aparece aqui. 😉</div>'; return; }
+    const groups={}; for(const c of cards){(groups[c.day]=groups[c.day]||[]).push(c);}
+    const fmtDay=d=>{const t=new Date().toISOString().slice(0,10);const y=new Date(Date.now()-DAY).toISOString().slice(0,10);
+      if(d===t)return'Hoje';if(d===y)return'Ontem';const[Y,M,D]=d.split('-');return `${D}/${M}/${Y}`;};
+    const fmtDue=due=>{const diff=due-Date.now(); if(diff<=0)return'revisar agora';
+      const days=Math.round(diff/DAY); if(days<1)return'em breve'; if(days===1)return'amanhã'; return'em '+days+' dias';};
+    box.innerHTML='';
     for(const day of Object.keys(groups)){
-      html += `<div class="daygroup"><div class="dayhdr">${fmt(day)} · ${groups[day].length}</div>`;
+      const h=document.createElement('div'); h.className='dayhdr'; h.textContent=fmtDay(day)+' · '+groups[day].length; box.appendChild(h);
       for(const c of groups[day]){
-        html += `<div class="fc"><div class="txt"><div class="fes"></div><div class="fpt"></div></div><button class="play">🔊</button></div>`;
-      }
-      html += `</div>`;
-    }
-    box.innerHTML=html;
-    // preenche com textContent (evita HTML injection) e liga o play
-    let i=0;
-    for(const day of Object.keys(groups)){
-      for(const c of groups[day]){
-        const el=box.querySelectorAll('.fc')[i++];
-        el.querySelector('.fes').textContent=c.es;
-        el.querySelector('.fpt').textContent=c.pt;
-        el.querySelector('.play').onclick=()=>speak(c.es,0.95);
-        el.querySelector('.txt').onclick=()=>speak(c.es,0.95);
+        const el=document.createElement('div'); el.className='fc';
+        const t=document.createElement('div'); t.className='txt';
+        const a=document.createElement('div'); a.className='fes'; a.textContent=c.es;
+        const b=document.createElement('div'); b.className='fpt'; b.textContent=c.pt;
+        const du=document.createElement('div'); du.className='due'; du.textContent='⏱ '+fmtDue(c.srs.due);
+        t.append(a,b,du); t.onclick=()=>speak(c.es,0.95);
+        const play=document.createElement('button'); play.textContent='🔊'; play.onclick=()=>speak(c.es,0.95);
+        const del=document.createElement('button'); del.textContent='🗑'; del.onclick=()=>{ if(confirm('Apagar este card?')){ const all=loadCards().filter(x=>x.ts!==c.ts); persistCards(all); renderCards(); } };
+        el.append(t,play,del); box.appendChild(el);
       }
     }
+  }
+
+  // ---- fluxo de revisão ----
+  let reviewCards=null, reviewQueue=null;
+  function startReview(){
+    reviewCards=loadCards(); const now=Date.now();
+    reviewQueue=reviewCards.filter(c=>c.srs.due<=now);
+    if(!reviewQueue.length) return;
+    $('cardList').style.display='none'; $('reviewBar').style.display='none'; $('reviewPanel').style.display='flex'; $('reviewPanel').classList.add('view');
+    renderReviewCard();
+  }
+  function renderReviewCard(){
+    if(!reviewQueue.length){ endReview(true); return; }
+    const c=reviewQueue[0];
+    $('rvLeft').textContent=reviewQueue.length;
+    $('rvPt').textContent=c.pt||'(sem tradução)';
+    $('rvEs').textContent=c.es; $('rvEs').style.filter='blur(8px)';
+    $('rvNote').textContent='';
+    setEl($('rvStatus'),'','');
+    $('rvGrades').style.display='none';
+  }
+  function revealReview(){
+    const c=reviewQueue[0]; if(!c)return;
+    $('rvEs').style.filter='none'; $('rvNote').textContent=c.note||'';
+    $('rvGrades').style.display='flex'; speak(c.es,0.95);
+  }
+  function gradeReview(grade){
+    const c=reviewQueue.shift(); if(!c)return;
+    schedule(c,grade); persistCards(reviewCards);
+    if(grade==='again') reviewQueue.push(c);       // revê ainda nesta sessão
+    renderReviewCard();
+  }
+  function endReview(done){
+    $('reviewPanel').style.display='none'; $('reviewPanel').classList.remove('view');
+    $('cardList').style.display='block'; $('reviewBar').style.display='block';
+    renderCards();
+    if(done){ setEl($('status'),'ok',''); }
   }
 
   // ================== Navegação ==================
   function show(view){
-    const p = view==='practice';
+    const p=view==='practice';
     $('practice').classList.toggle('active',p); $('cards').classList.toggle('active',!p);
     $('tabPractice').classList.toggle('active',p); $('tabCards').classList.toggle('active',!p);
-    if(!p) renderCards();
+    if(!p){ $('reviewPanel').style.display='none'; $('reviewPanel').classList.remove('view'); $('cardList').style.display='block'; $('reviewBar').style.display='block'; renderCards(); }
   }
 
   // ================== Eventos ==================
-  $('mic').onclick    = ()=> listening ? stopMic() : startMic('capture');
-  $('listen').onclick = ()=> current ? speak(current.corrected,0.9) : setStatus('info','Fale uma frase primeiro.');
-  $('repeat').onclick = ()=> startMic('shadow');
-  $('newp').onclick   = ()=> resetPractice();
-  $('tabPractice').onclick = ()=> show('practice');
-  $('tabCards').onclick    = ()=> show('cards');
+  $('mic').onclick    = ()=> listening?stopMic():startMic('capture');
+  $('listen').onclick = ()=> current?speak(current.corrected,0.9):setEl($('status'),'info','Fale uma frase primeiro.');
+  $('repeat').onclick = ()=> current&&startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('mic')});
+  $('why').onclick    = explainCurrent;
+  $('newp').onclick   = resetPractice;
+  $('tabPractice').onclick=()=>show('practice');
+  $('tabCards').onclick   =()=>show('cards');
+  $('reviewBar').onclick  = startReview;
+  $('rvShow').onclick     = revealReview;
+  $('rvRepeat').onclick   = ()=>{ const c=reviewQueue&&reviewQueue[0]; if(c){ revealReview(); startMic('shadow',{target:c.es,statusEl:$('rvStatus'),micBtn:$('rvRepeat')}); } };
+  $('rvAgain').onclick    = ()=>gradeReview('again');
+  $('rvGood').onclick     = ()=>gradeReview('good');
+  $('rvEasy').onclick     = ()=>gradeReview('easy');
+  $('rvQuit').onclick     = ()=>endReview(false);
+
   if(!SR){ $('foot').innerHTML='⚠️ Sem reconhecimento de voz aqui. Abra no <b>Chrome (Android)</b>.'; }
   updateCount();
-
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
   </script>
 </body>

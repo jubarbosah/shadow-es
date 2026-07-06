@@ -1,4 +1,4 @@
-const CACHE = 'shadow-es-v2';
+const CACHE = 'shadow-es-v3';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
