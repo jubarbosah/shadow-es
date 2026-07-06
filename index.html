@@ -152,7 +152,7 @@
     </section>
   </main>
 
-  <footer id="foot">fala livre → correção → nota de pronúncia (Azure) → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v6</b> · fala livre → correção → pronúncia → revisão</footer>
 
   <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
   <script>
@@ -202,6 +202,9 @@
       if(nw){ sp.classList.add(matched[ti]?'ok':'bad'); ti++; }
       fbEl.appendChild(sp);
     }
+    const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
+    sub.textContent='⚙️ modo básico (sem Azure)';
+    fbEl.appendChild(sub);
     speak(target, pct>=75?0.98:0.85);
   }
 
@@ -307,7 +310,7 @@
       }
     } else { fbEl.appendChild(document.createTextNode(target)); }
     const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
-    sub.textContent=`Precisão ${Math.round(pa.accuracyScore||0)} · Fluência ${Math.round(pa.fluencyScore||0)} · Completude ${Math.round(pa.completenessScore||0)}`;
+    sub.textContent=`🎯 Azure · Precisão ${Math.round(pa.accuracyScore||0)} · Fluência ${Math.round(pa.fluencyScore||0)} · Completude ${Math.round(pa.completenessScore||0)}`;
     fbEl.appendChild(sub);
     speak(target, overall>=70?0.98:0.85);
   }
