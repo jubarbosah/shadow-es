@@ -152,8 +152,9 @@
     </section>
   </main>
 
-  <footer id="foot">v1 · fala livre → correção → shadowing → revisão</footer>
+  <footer id="foot">fala livre → correção → nota de pronúncia (Azure) → revisão</footer>
 
+  <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
   <script>
   const API_URL = "https://shadow-es.juniaclourenco.workers.dev";
   const $ = id => document.getElementById(id);
@@ -234,6 +235,82 @@
   }
 
   function setEl(el,kind,msg){ el.className='status '+kind; el.textContent=msg; }
+
+  // ================== AZURE — nota de pronúncia (fonema) ==================
+  let azTok={token:null,region:null,ts:0};
+  async function getAzToken(){
+    const now=Date.now();
+    if(azTok.token && now-azTok.ts < 8*60000) return azTok;
+    const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'azToken'})});
+    const d=await r.json();
+    if(d.error||!d.token) throw new Error(d.error||'sem token');
+    azTok={token:d.token,region:d.region,ts:now};
+    return azTok;
+  }
+  // retorna true se avaliou (mesmo que "não ouvi"); false se Azure indisponível -> usa Plano B
+  async function azAssess(target, fbEl, statusEl, micBtn){
+    const SDK=window.SpeechSDK;
+    if(!SDK) return false;
+    let tok; try{ tok=await getAzToken(); }catch(e){ return false; }
+    let speechConfig, recognizer;
+    try{
+      speechConfig=SDK.SpeechConfig.fromAuthorizationToken(tok.token, tok.region);
+      speechConfig.speechRecognitionLanguage='es-ES';
+      const pa=new SDK.PronunciationAssessmentConfig(target,
+        SDK.PronunciationAssessmentGradingSystem.HundredMark,
+        SDK.PronunciationAssessmentGranularity.Phoneme, true);
+      try{ pa.enableProsodyAssessment=true; }catch(_){}
+      const audioConfig=SDK.AudioConfig.fromDefaultMicrophoneInput();
+      recognizer=new SDK.SpeechRecognizer(speechConfig, audioConfig);
+      pa.applyTo(recognizer);
+    }catch(e){ return false; }
+
+    const oldLabel=micBtn.textContent; micBtn.classList.add('listening'); micBtn.textContent='● Ouvindo…';
+    setEl(statusEl,'info','Fale agora… 🎧'); if(fbEl) fbEl.innerHTML='';
+    return new Promise(resolve=>{
+      recognizer.recognizeOnceAsync(result=>{
+        micBtn.classList.remove('listening'); micBtn.textContent=oldLabel;
+        let handled=true;
+        try{
+          if(result.reason===SDK.ResultReason.RecognizedSpeech){
+            renderAzScore(fbEl, statusEl, SDK.PronunciationAssessmentResult.fromResult(result), target);
+          } else if(result.reason===SDK.ResultReason.NoMatch){
+            setEl(statusEl,'info','Não ouvi bem 👂 — tente de novo.');
+          } else { handled=false; }   // Canceled (mic/token) -> cai no Plano B
+        }catch(e){ handled=false; }
+        try{ recognizer.close(); }catch(_){}
+        resolve(handled);
+      }, _err=>{
+        micBtn.classList.remove('listening'); micBtn.textContent=oldLabel;
+        try{ recognizer.close(); }catch(_){}
+        resolve(false);
+      });
+    });
+  }
+  function renderAzScore(fbEl, statusEl, pa, target){
+    if(statusEl) setEl(statusEl,'','');
+    const overall=Math.round(pa.pronunciationScore||0);
+    fbEl.className='fb'; fbEl.innerHTML='';
+    const head=document.createElement('span'); head.className='pct';
+    head.textContent=overall+'/100  '+(overall>=85?'¡Excelente! 🎉':overall>=70?'¡Muy bien! 👏':overall>=50?'Casi 💪':'Sigue practicando 👂');
+    head.style.color=overall>=70?'var(--ok)':overall>=50?'var(--gold)':'var(--err)';
+    fbEl.appendChild(head);
+    const words=(pa.detailResult&&pa.detailResult.Words)?pa.detailResult.Words:[];
+    if(words.length){
+      for(const w of words){
+        const a=w.PronunciationAssessment||{}; const acc=a.AccuracyScore!=null?a.AccuracyScore:100; const err=a.ErrorType||'None';
+        const sp=document.createElement('span'); sp.className='w'; sp.textContent=w.Word+' ';
+        if(err==='Omission'||acc<60) sp.classList.add('bad');
+        else if(acc>=80) sp.classList.add('ok');
+        else sp.style.color='var(--gold)';
+        fbEl.appendChild(sp);
+      }
+    } else { fbEl.appendChild(document.createTextNode(target)); }
+    const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
+    sub.textContent=`Precisão ${Math.round(pa.accuracyScore||0)} · Fluência ${Math.round(pa.fluencyScore||0)} · Completude ${Math.round(pa.completenessScore||0)}`;
+    fbEl.appendChild(sub);
+    speak(target, overall>=70?0.98:0.85);
+  }
 
   // ================== PRATICAR ==================
   async function onCaptured(text){
@@ -388,14 +465,18 @@
   // ================== Eventos ==================
   $('mic').onclick    = ()=> listening?stopMic():startMic('capture');
   $('listen').onclick = ()=> current?speak(current.corrected,0.9):setEl($('status'),'info','Fale uma frase primeiro.');
-  $('repeat').onclick = ()=> current&&startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('mic'),fbEl:$('shadowFb')});
+  $('repeat').onclick = async ()=>{ if(!current)return;
+    const ok=await azAssess(current.corrected,$('shadowFb'),$('status'),$('mic'));
+    if(!ok) startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('mic'),fbEl:$('shadowFb')}); };
   $('why').onclick    = explainCurrent;
   $('newp').onclick   = resetPractice;
   $('tabPractice').onclick=()=>show('practice');
   $('tabCards').onclick   =()=>show('cards');
   $('reviewBar').onclick  = startReview;
   $('rvShow').onclick     = revealReview;
-  $('rvRepeat').onclick   = ()=>{ const c=reviewQueue&&reviewQueue[0]; if(c){ revealReview(); startMic('shadow',{target:c.es,statusEl:$('rvStatus'),micBtn:$('rvRepeat'),fbEl:$('rvFb')}); } };
+  $('rvRepeat').onclick   = async ()=>{ const c=reviewQueue&&reviewQueue[0]; if(!c)return; revealReview();
+    const ok=await azAssess(c.es,$('rvFb'),$('rvStatus'),$('rvRepeat'));
+    if(!ok) startMic('shadow',{target:c.es,statusEl:$('rvStatus'),micBtn:$('rvRepeat'),fbEl:$('rvFb')}); };
   $('rvAgain').onclick    = ()=>gradeReview('again');
   $('rvGood').onclick     = ()=>gradeReview('good');
   $('rvEasy').onclick     = ()=>gradeReview('easy');
