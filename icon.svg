@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0f172a"/>
-  <circle cx="256" cy="256" r="150" fill="#38bdf8" opacity="0.15"/>
-  <text x="50%" y="52%" text-anchor="middle" dominant-baseline="central"
-        font-family="system-ui,Segoe UI,Roboto,sans-serif" font-weight="800"
-        font-size="230" fill="#38bdf8">ñ</text>
-  <rect x="176" y="384" width="160" height="26" rx="13" fill="#f87171"/>
+  <rect width="512" height="512" rx="120" fill="#8a1c34"/>
+  <!-- megafone (cone) branco -->
+  <path fill="#ffffff"
+        d="M150 226 L298 182 Q312 178 312 196 L312 316 Q312 334 298 330 L150 286
+           Q140 283 140 273 L140 239 Q140 229 150 226 Z"/>
+  <!-- ondas de som -->
+  <g fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round">
+    <path d="M340 224 Q366 256 340 288"/>
+    <path d="M368 204 Q404 256 368 308"/>
+  </g>
 </svg>
