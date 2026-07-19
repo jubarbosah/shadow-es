@@ -165,7 +165,7 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v11</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v12</b> · fala livre → correção → pronúncia → revisão</footer>
 
   <script>
   // se o SDK da Azure não carregar pela URL principal, tenta um CDN alternativo
@@ -184,7 +184,8 @@
   let current = null;                 // resultado atual (praticar)
   let recMode = null;                 // 'capture' | 'shadow'
   let listening = false;
-  let shadowTarget=null, shadowStatusEl=null, shadowMicBtn=null, shadowFbEl=null, shadowOnDone=null;
+  let shadowTarget=null, shadowStatusEl=null, shadowMicBtn=null, shadowFbEl=null, shadowOnDone=null, shadowOnFail=null;
+  let micWatch=null, shadowCanceled=false;
 
   // -------- Voz (TTS) --------
   let esVoice=null;
@@ -245,16 +246,22 @@
     rec.onend = () => stopMic();
   }
   function startMic(mode, opts={}){
-    if(!rec){ setEl($('status'),'err','Use o Chrome no Android (sem reconhecimento de voz aqui).'); return; }
-    recMode=mode; shadowTarget=opts.target||null; shadowStatusEl=opts.statusEl||null; shadowMicBtn=opts.micBtn||$('primary'); shadowFbEl=opts.fbEl||null; shadowOnDone=opts.onDone||null;
+    if(!rec){ setEl($('status'),'err','Use o Chrome no Android (sem reconhecimento de voz aqui).'); if(opts.onFail)opts.onFail(); return; }
+    recMode=mode; shadowTarget=opts.target||null; shadowStatusEl=opts.statusEl||null; shadowMicBtn=opts.micBtn||$('primary'); shadowFbEl=opts.fbEl||null; shadowOnDone=opts.onDone||null; shadowOnFail=opts.onFail||null; shadowCanceled=false;
     if(shadowFbEl) shadowFbEl.innerHTML='';
-    listening=true; shadowMicBtn.classList.add('listening'); shadowMicBtn.dataset.old=shadowMicBtn.textContent; shadowMicBtn.textContent='● Ouvindo…';
+    listening=true; shadowMicBtn.classList.add('listening'); shadowMicBtn.dataset.old=shadowMicBtn.textContent; shadowMicBtn.textContent='● Ouvindo… (toque p/ parar)';
     setEl(shadowStatusEl||$('status'),'info', mode==='capture'?'Fale sua frase…':'Repita a frase…');
-    try{ rec.start(); }catch(_){}
+    try{ rec.start(); }
+    catch(e){ // já ativo/erro -> não deixa preso
+      const f=shadowOnFail; stopMic(); setEl(shadowStatusEl||$('status'),'info','Não consegui abrir o microfone 👂 — tente de novo.'); if(f)f(); return; }
+    // trava-morta: se em 12s nada voltar (nem resultado, nem erro), destrava
+    clearTimeout(micWatch);
+    micWatch=setTimeout(()=>{ if(!listening)return; const f=shadowOnFail; stopMic();
+      setEl(shadowStatusEl||$('status'),'info','Não consegui ouvir 👂 — toque e tente de novo.'); if(f)f(); }, 12000);
   }
-  function stopMic(){ listening=false; const b=shadowMicBtn||$('primary'); b.classList.remove('listening'); if(b.dataset.old)b.textContent=b.dataset.old; try{rec&&rec.stop();}catch(_){} }
+  function stopMic(){ listening=false; clearTimeout(micWatch); const b=shadowMicBtn||$('primary'); b.classList.remove('listening'); if(b.dataset.old)b.textContent=b.dataset.old; try{rec&&rec.stop();}catch(_){} }
   function onShadow(alts){
-    stopMic(); if(!shadowTarget)return;
+    stopMic(); if(!shadowTarget||shadowCanceled)return;
     let best=-1,bestA=''; for(const a of alts){ const sc=sim(a,shadowTarget); if(sc>best){best=sc;bestA=a;} }
     renderScore(shadowFbEl||$('shadowFb'), shadowStatusEl||$('status'), bestA, shadowTarget);
     if(shadowOnDone){ const cb=shadowOnDone; shadowOnDone=null; cb(); }
@@ -265,6 +272,7 @@
   // ================== AZURE — nota de pronúncia (fonema) ==================
   let azTok={token:null,region:null,ts:0};
   let azFailReason='';                 // por que a Azure caiu no Plano B (mostrado na tela)
+  let azCancel=null;                   // função pra abortar a avaliação Azure em andamento
   async function getAzToken(){
     const now=Date.now();
     if(azTok.token && now-azTok.ts < 8*60000) return azTok;
@@ -274,12 +282,12 @@
     azTok={token:d.token,region:d.region,ts:now};
     return azTok;
   }
-  // retorna true se avaliou (mesmo que "não ouvi"); false se Azure indisponível -> usa Plano B
+  // retorna: 'ok' (avaliou) | 'nomatch' (não ouviu) | 'cancel' (você parou) | 'fallback' (Azure indisponível -> Plano B)
   async function azAssess(target, fbEl, statusEl, micBtn){
     azFailReason='';
     const SDK=window.SpeechSDK;
-    if(!SDK){ azFailReason='SDK não carregou (rede?)'; return false; }
-    let tok; try{ tok=await getAzToken(); }catch(e){ azFailReason='token: '+((e&&e.message)||'falhou'); return false; }
+    if(!SDK){ azFailReason='SDK não carregou (rede?)'; return 'fallback'; }
+    let tok; try{ tok=await getAzToken(); }catch(e){ azFailReason='token: '+((e&&e.message)||'falhou'); return 'fallback'; }
     let speechConfig, recognizer;
     try{
       speechConfig=SDK.SpeechConfig.fromAuthorizationToken(tok.token, tok.region);
@@ -291,33 +299,40 @@
       const audioConfig=SDK.AudioConfig.fromDefaultMicrophoneInput();
       recognizer=new SDK.SpeechRecognizer(speechConfig, audioConfig);
       pa.applyTo(recognizer);
-    }catch(e){ azFailReason='config: '+((e&&e.message)||'erro').slice(0,60); return false; }
+    }catch(e){ azFailReason='config: '+((e&&e.message)||'erro').slice(0,60); return 'fallback'; }
 
-    const oldLabel=micBtn.textContent; micBtn.classList.add('listening'); micBtn.textContent='● Ouvindo…';
+    const oldLabel=micBtn.textContent; micBtn.classList.add('listening'); micBtn.textContent='● Ouvindo… (toque p/ parar)';
     setEl(statusEl,'info','Fale agora… 🎧'); if(fbEl) fbEl.innerHTML='';
     return new Promise(resolve=>{
-      recognizer.recognizeOnceAsync(result=>{
+      let done=false;
+      const finish=(code)=>{
+        if(done) return; done=true; azCancel=null; clearTimeout(to);
         micBtn.classList.remove('listening'); micBtn.textContent=oldLabel;
-        let handled=true;
+        try{ recognizer.close(); }catch(_){}
+        resolve(code);
+      };
+      // rede lenta / mic mudo: destrava sozinho em 15s
+      const to=setTimeout(()=>{ azFailReason='sem resposta em 15s'; finish('fallback'); }, 15000);
+      // permite abortar tocando no botão enquanto ouve
+      azCancel=()=>{ azFailReason='parado por você'; setEl(statusEl,'',''); finish('cancel'); };
+      recognizer.recognizeOnceAsync(result=>{
+        let code='ok';
         try{
           if(result.reason===SDK.ResultReason.RecognizedSpeech){
             renderAzScore(fbEl, statusEl, SDK.PronunciationAssessmentResult.fromResult(result), target);
           } else if(result.reason===SDK.ResultReason.NoMatch){
-            setEl(statusEl,'info','Não ouvi bem 👂 — tente de novo.');
-          } else {                     // Canceled (mic/token) -> cai no Plano B
-            handled=false;
+            setEl(statusEl,'info','Não ouvi bem 👂 — toque em Repetir e tente de novo.'); code='nomatch';
+          } else {                     // Canceled (mic/token) -> Plano B
+            code='fallback';
             try{ const cd=SDK.CancellationDetails.fromResult(result);
               azFailReason='cancelado: '+((cd&&(cd.errorDetails||cd.reason))||'?').toString().slice(0,60);
             }catch(_){ azFailReason='cancelado ('+result.reason+')'; }
           }
-        }catch(e){ handled=false; azFailReason='exceção: '+((e&&e.message)||'').slice(0,50); }
-        try{ recognizer.close(); }catch(_){}
-        resolve(handled);
+        }catch(e){ code='fallback'; azFailReason='exceção: '+((e&&e.message)||'').slice(0,50); }
+        finish(code);
       }, err=>{
-        micBtn.classList.remove('listening'); micBtn.textContent=oldLabel;
         azFailReason='erro: '+((err&&err.toString&&err.toString())||'reconhecedor').slice(0,60);
-        try{ recognizer.close(); }catch(_){}
-        resolve(false);
+        finish('fallback');
       });
     });
   }
@@ -382,11 +397,24 @@
     }
   }
   // repetir a frase correta e ganhar a nota (Azure; se falhar, Plano B do navegador)
+  let repeatBusy=false;
   async function repeatPractice(){
-    if(!current) return;
-    const ok=await azAssess(current.corrected,$('shadowFb'),$('status'),$('primary'));
-    if(ok){ setStep('scored'); }
-    else startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('primary'),fbEl:$('shadowFb'),onDone:()=>setStep('scored')});
+    if(!current || repeatBusy) return;
+    repeatBusy=true;
+    $('primary').onclick=cancelRepeat;                 // enquanto ouve, tocar = parar
+    const code=await azAssess(current.corrected,$('shadowFb'),$('status'),$('primary'));
+    repeatBusy=false;
+    if(code==='ok'){ setStep('scored'); }
+    else if(code==='fallback'){                         // Azure indisponível -> navegador
+      startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('primary'),fbEl:$('shadowFb'),
+        onDone:()=>setStep('scored'), onFail:()=>setStep('corrected')});
+      $('primary').onclick=cancelRepeat;               // Plano B também cancelável
+    } else { setStep('corrected'); }                   // 'nomatch' ou 'cancel' -> pode repetir
+  }
+  // aborta o que estiver ouvindo (Azure ou navegador) sem deixar preso
+  function cancelRepeat(){
+    if(azCancel){ const c=azCancel; azCancel=null; c(); return; }
+    if(listening){ shadowCanceled=true; shadowOnDone=null; stopMic(); setStep('corrected'); }
   }
   // recebe a lista de alternativas do reconhecedor e mostra o campo editável
   function onCaptured(alts){
@@ -568,8 +596,9 @@
   $('reviewBar').onclick  = startReview;
   $('rvShow').onclick     = revealReview;
   $('rvRepeat').onclick   = async ()=>{ const c=reviewQueue&&reviewQueue[0]; if(!c)return; revealReview();
-    const ok=await azAssess(c.es,$('rvFb'),$('rvStatus'),$('rvRepeat'));
-    if(!ok) startMic('shadow',{target:c.es,statusEl:$('rvStatus'),micBtn:$('rvRepeat'),fbEl:$('rvFb')}); };
+    const code=await azAssess(c.es,$('rvFb'),$('rvStatus'),$('rvRepeat'));
+    if(code==='fallback') startMic('shadow',{target:c.es,statusEl:$('rvStatus'),micBtn:$('rvRepeat'),fbEl:$('rvFb'),
+      onFail:()=>setEl($('rvStatus'),'info','Não consegui ouvir 👂 — toque em Repetir.')}); };
   $('rvAgain').onclick    = ()=>gradeReview('again');
   $('rvGood').onclick     = ()=>gradeReview('good');
   $('rvEasy').onclick     = ()=>gradeReview('easy');
