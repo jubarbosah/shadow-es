@@ -165,7 +165,7 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v12</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v13</b> · fala livre → correção → pronúncia → revisão</footer>
 
   <script>
   // se o SDK da Azure não carregar pela URL principal, tenta um CDN alternativo
@@ -338,11 +338,13 @@
   }
   function renderAzScore(fbEl, statusEl, pa, target){
     if(statusEl) setEl(statusEl,'','');
-    const overall=Math.round(pa.pronunciationScore||0);
+    // NOTA PRINCIPAL = PRECISÃO dos sons (o que "pronúncia" realmente é).
+    // A média geral da Azure (pronunciationScore) infla por fluência/completude, então não serve de nota.
+    const overall=Math.round(pa.accuracyScore!=null?pa.accuracyScore:(pa.pronunciationScore||0));
     fbEl.className='fb'; fbEl.innerHTML='';
     const head=document.createElement('span'); head.className='pct';
-    head.textContent=overall+'/100  '+(overall>=85?'¡Excelente! 🎉':overall>=70?'¡Muy bien! 👏':overall>=50?'Casi 💪':'Sigue practicando 👂');
-    head.style.color=overall>=70?'var(--ok)':overall>=50?'var(--gold)':'var(--err)';
+    head.textContent=overall+'/100  '+(overall>=90?'¡Excelente! 🎉':overall>=75?'¡Muy bien! 👏':overall>=60?'Casi 💪':'Sigue practicando 👂');
+    head.style.color=overall>=75?'var(--ok)':overall>=60?'var(--gold)':'var(--err)';
     fbEl.appendChild(head);
     const words=(pa.detailResult&&pa.detailResult.Words)?pa.detailResult.Words:[];
     if(words.length){
@@ -356,9 +358,11 @@
       }
     } else { fbEl.appendChild(document.createTextNode(target)); }
     const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
-    sub.textContent=`🎯 Azure · Precisão ${Math.round(pa.accuracyScore||0)} · Fluência ${Math.round(pa.fluencyScore||0)} · Completude ${Math.round(pa.completenessScore||0)}`;
+    const parts=[`🎯 Azure · Precisão ${overall}`,`Fluência ${Math.round(pa.fluencyScore||0)}`,`Completude ${Math.round(pa.completenessScore||0)}`];
+    if(pa.prosodyScore!=null) parts.push(`Prosódia ${Math.round(pa.prosodyScore)}`);
+    sub.textContent=parts.join(' · ');
     fbEl.appendChild(sub);
-    speak(target, overall>=70?0.98:0.85);
+    speak(target, overall>=75?0.98:0.85);
   }
 
   // ================== PRATICAR ==================
