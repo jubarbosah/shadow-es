@@ -45,6 +45,8 @@
     .fb .w{padding:0 1px;border-radius:4px}
     .fb .w.ok{color:var(--ok)}
     .fb .w.bad{color:var(--err);text-decoration:underline;text-decoration-style:wavy}
+    .guide{text-align:center;color:var(--accent-lt);font-size:15px;font-weight:700;line-height:1.45;margin:2px 4px}
+    .guide:empty{display:none}
     .placeholder{text-align:center;color:var(--muted);font-size:15px;padding:8px 6px;line-height:1.5}
     .controls{display:flex;gap:10px}
     button.btn{font:inherit;border:none;border-radius:16px;padding:15px;cursor:pointer;font-weight:800;color:var(--text);background:var(--line);flex:1;transition:transform .05s}
@@ -117,25 +119,20 @@
           style="width:100%;background:#0b1220;border:1px solid var(--line);border-radius:12px;color:var(--text);font:inherit;font-size:18px;font-weight:700;padding:12px;margin-top:6px" />
         <div class="controls" style="margin-top:10px">
           <button class="btn ghost small" id="captureRedo">🎤 Falar de novo</button>
-          <button class="btn mic small" id="captureSend" style="flex:2">✓ Corrigir</button>
+          <button class="btn mic small" id="captureSend" style="flex:2">✓ Está certo →</button>
         </div>
       </div>
 
       <div class="status" id="status"></div>
       <div class="fb" id="shadowFb"></div>
 
-      <div class="controls">
-        <button class="btn ghost" id="listen">🔊 Ouvir</button>
-        <button class="btn mic" id="mic">🎤 Falar</button>
-      </div>
-      <div class="controls">
-        <button class="btn ghost small" id="typeBtn">⌨️ Digitar em vez de falar</button>
-      </div>
-      <div class="controls">
-        <button class="btn ghost small" id="repeat" style="display:none">🎤 Repetir</button>
-        <button class="btn ghost small" id="fix" style="display:none">✏️ Corrigir</button>
-        <button class="btn ghost small" id="why" style="display:none">🤔 Por quê?</button>
-        <button class="btn ghost small" id="newp" style="display:none">＋ Nova</button>
+      <!-- fluxo guiado: uma linha que diz o que fazer + 1 ação principal + secundárias -->
+      <div id="mainControls">
+        <div class="guide" id="guide"></div>
+        <div class="controls">
+          <button class="btn mic" id="primary">🎤 Falar</button>
+        </div>
+        <div class="controls" id="secondary"></div>
       </div>
     </section>
 
@@ -168,7 +165,7 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v10</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v11</b> · fala livre → correção → pronúncia → revisão</footer>
 
   <script>
   // se o SDK da Azure não carregar pela URL principal, tenta um CDN alternativo
@@ -187,7 +184,7 @@
   let current = null;                 // resultado atual (praticar)
   let recMode = null;                 // 'capture' | 'shadow'
   let listening = false;
-  let shadowTarget=null, shadowStatusEl=null, shadowMicBtn=null, shadowFbEl=null;
+  let shadowTarget=null, shadowStatusEl=null, shadowMicBtn=null, shadowFbEl=null, shadowOnDone=null;
 
   // -------- Voz (TTS) --------
   let esVoice=null;
@@ -249,17 +246,18 @@
   }
   function startMic(mode, opts={}){
     if(!rec){ setEl($('status'),'err','Use o Chrome no Android (sem reconhecimento de voz aqui).'); return; }
-    recMode=mode; shadowTarget=opts.target||null; shadowStatusEl=opts.statusEl||null; shadowMicBtn=opts.micBtn||$('mic'); shadowFbEl=opts.fbEl||null;
+    recMode=mode; shadowTarget=opts.target||null; shadowStatusEl=opts.statusEl||null; shadowMicBtn=opts.micBtn||$('primary'); shadowFbEl=opts.fbEl||null; shadowOnDone=opts.onDone||null;
     if(shadowFbEl) shadowFbEl.innerHTML='';
     listening=true; shadowMicBtn.classList.add('listening'); shadowMicBtn.dataset.old=shadowMicBtn.textContent; shadowMicBtn.textContent='● Ouvindo…';
     setEl(shadowStatusEl||$('status'),'info', mode==='capture'?'Fale sua frase…':'Repita a frase…');
     try{ rec.start(); }catch(_){}
   }
-  function stopMic(){ listening=false; const b=shadowMicBtn||$('mic'); b.classList.remove('listening'); if(b.dataset.old)b.textContent=b.dataset.old; try{rec&&rec.stop();}catch(_){} }
+  function stopMic(){ listening=false; const b=shadowMicBtn||$('primary'); b.classList.remove('listening'); if(b.dataset.old)b.textContent=b.dataset.old; try{rec&&rec.stop();}catch(_){} }
   function onShadow(alts){
     stopMic(); if(!shadowTarget)return;
     let best=-1,bestA=''; for(const a of alts){ const sc=sim(a,shadowTarget); if(sc>best){best=sc;bestA=a;} }
     renderScore(shadowFbEl||$('shadowFb'), shadowStatusEl||$('status'), bestA, shadowTarget);
+    if(shadowOnDone){ const cb=shadowOnDone; shadowOnDone=null; cb(); }
   }
 
   function setEl(el,kind,msg){ el.className='status '+kind; el.textContent=msg; }
@@ -351,6 +349,45 @@
   // ================== PRATICAR ==================
   let lastAlts=[];                    // hipóteses do reconhecedor da última fala
   let lastSent='';                    // o texto que foi realmente enviado ao cérebro
+
+  // ---- fluxo guiado: em cada passo, UMA ação principal óbvia + secundárias ----
+  function addBtn(txt, fn, cls){
+    const b=document.createElement('button'); b.className='btn '+(cls||'ghost')+' small'; b.textContent=txt; b.onclick=fn;
+    $('secondary').appendChild(b); return b;
+  }
+  function setStep(s){
+    const prim=$('primary'), sec=$('secondary'), guide=$('guide');
+    sec.innerHTML=''; guide.textContent='';
+    if(s==='idle'){
+      prim.className='btn mic'; prim.textContent='🎤 Falar';
+      prim.onclick=()=> listening?stopMic():startMic('capture');
+      addBtn('⌨️ Digitar', ()=>openCapture('', 'Digite a frase em espanhol'));
+    } else if(s==='corrected'){
+      prim.className='btn mic'; prim.textContent='🎤 Repetir e ver nota';
+      prim.onclick=repeatPractice;
+      guide.textContent = (current&&current.wasCorrect)
+        ? '✅ Você acertou! Agora repita em voz alta pra fixar e ganhar sua nota.'
+        : '👉 Ouça a forma certa e repita em voz alta pra ganhar sua nota de pronúncia.';
+      addBtn('🔊 Ouvir', ()=> current&&speak(current.corrected,0.9));
+      addBtn('✏️ Corrigir', ()=> openCapture(lastSent, 'Corrija o que você quis dizer'));
+      addBtn('🤔 Por quê?', explainCurrent);
+      addBtn('＋ Nova', resetPractice);
+    } else if(s==='scored'){
+      prim.className='btn ghost'; prim.textContent='🔁 Repetir';
+      prim.onclick=repeatPractice;
+      guide.textContent='Ouça de novo e repita quantas vezes quiser. Quando quiser, vá pra próxima. 👇';
+      addBtn('🔊 Ouvir', ()=> current&&speak(current.corrected,0.9));
+      addBtn('🤔 Por quê?', explainCurrent);
+      addBtn('＋ Nova frase', resetPractice, 'mic');
+    }
+  }
+  // repetir a frase correta e ganhar a nota (Azure; se falhar, Plano B do navegador)
+  async function repeatPractice(){
+    if(!current) return;
+    const ok=await azAssess(current.corrected,$('shadowFb'),$('status'),$('primary'));
+    if(ok){ setStep('scored'); }
+    else startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('primary'),fbEl:$('shadowFb'),onDone:()=>setStep('scored')});
+  }
   // recebe a lista de alternativas do reconhecedor e mostra o campo editável
   function onCaptured(alts){
     stopMic();
@@ -364,11 +401,11 @@
     lastAlts = text ? [...new Set([text, ...lastAlts])] : [];
     $('captureLabel').textContent = label || 'Digite a frase em espanhol';
     const inp=$('captureInput'); inp.value=text||'';
-    $('captureBox').style.display='block';
+    $('captureBox').style.display='block'; $('mainControls').style.display='none';
     setEl($('status'),'',''); $('shadowFb').innerHTML='';
     inp.focus(); try{ inp.setSelectionRange(inp.value.length, inp.value.length); }catch(_){}
   }
-  function closeCapture(){ $('captureBox').style.display='none'; }
+  function closeCapture(){ $('captureBox').style.display='none'; $('mainControls').style.display='block'; }
   // envia a frase (editada ou não) + as hipóteses pro cérebro
   async function sendCorrect(){
     const text=$('captureInput').value.trim();
@@ -390,8 +427,8 @@
     $('es').textContent=res.corrected; $('pt').textContent=res.translation_pt||''; $('note').textContent=res.note_pt||'';
     $('said').textContent=saidText?'Você disse: “'+saidText+'”':'';
     $('explainBox').style.display='none'; $('explanation').textContent=''; $('examples').innerHTML=''; $('shadowFb').innerHTML='';
-    setEl($('status'),res.wasCorrect?'ok':'info',res.wasCorrect?'¡Perfecto! 🎉 Repita pra fixar.':'Escute e repita 👇');
-    $('repeat').style.display='block'; $('fix').style.display='block'; $('why').style.display='block'; $('newp').style.display='block';
+    setEl($('status'),res.wasCorrect?'ok':'info',res.wasCorrect?'¡Perfecto! 🎉':'Forma correta 👇');
+    setStep('corrected');
     speak(res.corrected,0.95); saveCard(res); updateCount();
   }
   async function explainCurrent(){
@@ -415,7 +452,7 @@
     }catch(e){ $('explanation').textContent='Sem conexão para explicar.'; }
   }
   function resetPractice(){ current=null; closeCapture(); $('result').style.display='none'; $('placeholder').style.display='block';
-    $('repeat').style.display='none'; $('fix').style.display='none'; $('why').style.display='none'; $('newp').style.display='none'; setEl($('status'),'',''); $('shadowFb').innerHTML=''; }
+    setEl($('status'),'',''); $('shadowFb').innerHTML=''; setStep('idle'); }
 
   // ================== FLASHCARDS + REVISÃO ESPAÇADA ==================
   const KEY='shadow_es_cards';
@@ -523,18 +560,9 @@
   }
 
   // ================== Eventos ==================
-  $('mic').onclick    = ()=> listening?stopMic():startMic('capture');
-  $('typeBtn').onclick   = ()=> openCapture('', 'Digite a frase em espanhol');
-  $('fix').onclick       = ()=> openCapture(lastSent, 'Corrija o que você quis dizer');
   $('captureSend').onclick= sendCorrect;
   $('captureRedo').onclick= ()=>{ closeCapture(); startMic('capture'); };
   $('captureInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendCorrect(); } });
-  $('listen').onclick = ()=> current?speak(current.corrected,0.9):setEl($('status'),'info','Fale uma frase primeiro.');
-  $('repeat').onclick = async ()=>{ if(!current)return;
-    const ok=await azAssess(current.corrected,$('shadowFb'),$('status'),$('mic'));
-    if(!ok) startMic('shadow',{target:current.corrected,statusEl:$('status'),micBtn:$('mic'),fbEl:$('shadowFb')}); };
-  $('why').onclick    = explainCurrent;
-  $('newp').onclick   = resetPractice;
   $('tabPractice').onclick=()=>show('practice');
   $('tabCards').onclick   =()=>show('cards');
   $('reviewBar').onclick  = startReview;
@@ -549,6 +577,7 @@
 
   if(!SR){ $('foot').innerHTML='⚠️ Sem reconhecimento de voz aqui. Abra no <b>Chrome (Android)</b>.'; }
   updateCount();
+  setStep('idle');
   // Atualização automática: quando sair uma versão nova, o app recarrega sozinho.
   if('serviceWorker' in navigator){
     let refreshing=false;
