@@ -133,6 +133,7 @@
       </div>
       <div class="controls">
         <button class="btn ghost small" id="repeat" style="display:none">🎤 Repetir</button>
+        <button class="btn ghost small" id="fix" style="display:none">✏️ Corrigir</button>
         <button class="btn ghost small" id="why" style="display:none">🤔 Por quê?</button>
         <button class="btn ghost small" id="newp" style="display:none">＋ Nova</button>
       </div>
@@ -167,9 +168,18 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v8</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v9</b> · fala livre → correção → pronúncia → revisão</footer>
 
-  <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+  <script>
+  // se o SDK da Azure não carregar pela URL principal, tenta um CDN alternativo
+  function azSdkFallback(){
+    if(window.SpeechSDK) return;
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@1.40.0/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js';
+    document.head.appendChild(s);
+  }
+  </script>
+  <script src="https://aka.ms/csspeech/jsbrowserpackageraw" onerror="azSdkFallback()"></script>
   <script>
   const API_URL = "https://shadow-es.juniaclourenco.workers.dev";
   const $ = id => document.getElementById(id);
@@ -218,7 +228,7 @@
       fbEl.appendChild(sp);
     }
     const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
-    sub.textContent='⚙️ modo básico (sem Azure)';
+    sub.textContent='⚙️ modo básico' + (azFailReason ? ' · Azure ✗ '+azFailReason : ' (sem Azure)');
     fbEl.appendChild(sub);
     speak(target, pct>=75?0.98:0.85);
   }
@@ -256,6 +266,7 @@
 
   // ================== AZURE — nota de pronúncia (fonema) ==================
   let azTok={token:null,region:null,ts:0};
+  let azFailReason='';                 // por que a Azure caiu no Plano B (mostrado na tela)
   async function getAzToken(){
     const now=Date.now();
     if(azTok.token && now-azTok.ts < 8*60000) return azTok;
@@ -267,9 +278,10 @@
   }
   // retorna true se avaliou (mesmo que "não ouvi"); false se Azure indisponível -> usa Plano B
   async function azAssess(target, fbEl, statusEl, micBtn){
+    azFailReason='';
     const SDK=window.SpeechSDK;
-    if(!SDK) return false;
-    let tok; try{ tok=await getAzToken(); }catch(e){ return false; }
+    if(!SDK){ azFailReason='SDK não carregou (rede?)'; return false; }
+    let tok; try{ tok=await getAzToken(); }catch(e){ azFailReason='token: '+((e&&e.message)||'falhou'); return false; }
     let speechConfig, recognizer;
     try{
       speechConfig=SDK.SpeechConfig.fromAuthorizationToken(tok.token, tok.region);
@@ -281,7 +293,7 @@
       const audioConfig=SDK.AudioConfig.fromDefaultMicrophoneInput();
       recognizer=new SDK.SpeechRecognizer(speechConfig, audioConfig);
       pa.applyTo(recognizer);
-    }catch(e){ return false; }
+    }catch(e){ azFailReason='config: '+((e&&e.message)||'erro').slice(0,60); return false; }
 
     const oldLabel=micBtn.textContent; micBtn.classList.add('listening'); micBtn.textContent='● Ouvindo…';
     setEl(statusEl,'info','Fale agora… 🎧'); if(fbEl) fbEl.innerHTML='';
@@ -294,12 +306,18 @@
             renderAzScore(fbEl, statusEl, SDK.PronunciationAssessmentResult.fromResult(result), target);
           } else if(result.reason===SDK.ResultReason.NoMatch){
             setEl(statusEl,'info','Não ouvi bem 👂 — tente de novo.');
-          } else { handled=false; }   // Canceled (mic/token) -> cai no Plano B
-        }catch(e){ handled=false; }
+          } else {                     // Canceled (mic/token) -> cai no Plano B
+            handled=false;
+            try{ const cd=SDK.CancellationDetails.fromResult(result);
+              azFailReason='cancelado: '+((cd&&(cd.errorDetails||cd.reason))||'?').toString().slice(0,60);
+            }catch(_){ azFailReason='cancelado ('+result.reason+')'; }
+          }
+        }catch(e){ handled=false; azFailReason='exceção: '+((e&&e.message)||'').slice(0,50); }
         try{ recognizer.close(); }catch(_){}
         resolve(handled);
-      }, _err=>{
+      }, err=>{
         micBtn.classList.remove('listening'); micBtn.textContent=oldLabel;
+        azFailReason='erro: '+((err&&err.toString&&err.toString())||'reconhecedor').slice(0,60);
         try{ recognizer.close(); }catch(_){}
         resolve(false);
       });
@@ -332,6 +350,7 @@
 
   // ================== PRATICAR ==================
   let lastAlts=[];                    // hipóteses do reconhecedor da última fala
+  let lastSent='';                    // o texto que foi realmente enviado ao cérebro
   // recebe a lista de alternativas do reconhecedor e mostra o campo editável
   function onCaptured(alts){
     stopMic();
@@ -354,7 +373,7 @@
   async function sendCorrect(){
     const text=$('captureInput').value.trim();
     if(!text){ $('captureInput').focus(); return; }
-    closeCapture();
+    lastSent=text; closeCapture();
     setEl($('status'),'info','Pensando… 🤔'); $('said').textContent='Você disse: “'+text+'”';
     const alts=[...new Set([text, ...lastAlts])].slice(0,5);
     try{
@@ -372,7 +391,7 @@
     $('said').textContent=saidText?'Você disse: “'+saidText+'”':'';
     $('explainBox').style.display='none'; $('explanation').textContent=''; $('examples').innerHTML=''; $('shadowFb').innerHTML='';
     setEl($('status'),res.wasCorrect?'ok':'info',res.wasCorrect?'¡Perfecto! 🎉 Repita pra fixar.':'Escute e repita 👇');
-    $('repeat').style.display='block'; $('why').style.display='block'; $('newp').style.display='block';
+    $('repeat').style.display='block'; $('fix').style.display='block'; $('why').style.display='block'; $('newp').style.display='block';
     speak(res.corrected,0.95); saveCard(res); updateCount();
   }
   async function explainCurrent(){
@@ -396,7 +415,7 @@
     }catch(e){ $('explanation').textContent='Sem conexão para explicar.'; }
   }
   function resetPractice(){ current=null; closeCapture(); $('result').style.display='none'; $('placeholder').style.display='block';
-    $('repeat').style.display='none'; $('why').style.display='none'; $('newp').style.display='none'; setEl($('status'),'',''); $('shadowFb').innerHTML=''; }
+    $('repeat').style.display='none'; $('fix').style.display='none'; $('why').style.display='none'; $('newp').style.display='none'; setEl($('status'),'',''); $('shadowFb').innerHTML=''; }
 
   // ================== FLASHCARDS + REVISÃO ESPAÇADA ==================
   const KEY='shadow_es_cards';
@@ -506,6 +525,7 @@
   // ================== Eventos ==================
   $('mic').onclick    = ()=> listening?stopMic():startMic('capture');
   $('typeBtn').onclick   = ()=> openCapture('', 'Digite a frase em espanhol');
+  $('fix').onclick       = ()=> openCapture(lastSent, 'Corrija o que você quis dizer');
   $('captureSend').onclick= sendCorrect;
   $('captureRedo').onclick= ()=>{ closeCapture(); startMic('capture'); };
   $('captureInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendCorrect(); } });
