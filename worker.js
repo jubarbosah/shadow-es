@@ -38,17 +38,30 @@ export default {
 
 // -------- MODO 1: corrigir --------
 async function doCorrect(body, env, cors) {
-  const text = String(body.text || '').slice(0, 300).trim();
+  // aceita uma lista de hipóteses do reconhecedor (alts) além do texto principal
+  const alts = Array.isArray(body.alts)
+    ? body.alts.map(s => String(s || '').slice(0, 300).trim()).filter(Boolean)
+    : [];
+  const text = String(body.text || '').slice(0, 300).trim() || alts[0] || '';
   if (!text) return json({ error: 'texto vazio' }, 400, cors);
+
+  // dedup mantendo ordem (o texto principal primeiro)
+  const hyps = [...new Set([text, ...alts])].slice(0, 5);
+  const userText = hyps.length > 1
+    ? 'El reconocimiento de voz del móvil dio varias hipótesis (de más a menos probable):\n' +
+      hyps.map((h, i) => `${i + 1}. "${h}"`).join('\n') +
+      '\nElige la que MÁS probablemente quiso decir el alumno (o combina lo mejor de ellas) y devuélvela corregida.'
+    : `Transcripción del alumno: "${text}"`;
 
   const payload = {
     systemInstruction: { parts: [{ text:
       'Eres un profesor de español de España (peninsular). Un estudiante brasileño intenta decir una frase en español. ' +
-      'Recibes una transcripción automática que PUEDE tener errores de reconocimiento de voz. ' +
-      'Devuelve la versión más natural y correcta en español de España de lo que probablemente quiso decir. ' +
+      'Recibes una o varias transcripciones automáticas que PUEDEN tener errores de reconocimiento de voz, ' +
+      'a menudo confundiendo palabras españolas con palabras portuguesas de sonido parecido. ' +
+      'Interpreta la intención real y devuelve la versión más natural y correcta en español de España de lo que probablemente quiso decir. ' +
       'Si ya era correcta, mantenla. La nota (note_pt) y la traducción (translation_pt) van en portugués de Brasil, y note_pt debe ser muy breve.'
     }] },
-    contents: [{ parts: [{ text: `Transcripción del alumno: "${text}"` }] }],
+    contents: [{ parts: [{ text: userText }] }],
     generationConfig: {
       temperature: 0.2,
       responseMimeType: 'application/json',

@@ -109,12 +109,27 @@
         </div>
       </div>
 
+      <!-- transcrição editável (confira/ajuste antes de corrigir) -->
+      <div class="card" id="captureBox" style="display:none;padding:14px">
+        <div class="label" id="captureLabel">Você disse — confira e ajuste se precisar</div>
+        <input id="captureInput" type="text" lang="es" autocomplete="off" autocapitalize="sentences" spellcheck="false"
+          placeholder="Digite ou corrija a frase em espanhol…"
+          style="width:100%;background:#0b1220;border:1px solid var(--line);border-radius:12px;color:var(--text);font:inherit;font-size:18px;font-weight:700;padding:12px;margin-top:6px" />
+        <div class="controls" style="margin-top:10px">
+          <button class="btn ghost small" id="captureRedo">🎤 Falar de novo</button>
+          <button class="btn mic small" id="captureSend" style="flex:2">✓ Corrigir</button>
+        </div>
+      </div>
+
       <div class="status" id="status"></div>
       <div class="fb" id="shadowFb"></div>
 
       <div class="controls">
         <button class="btn ghost" id="listen">🔊 Ouvir</button>
         <button class="btn mic" id="mic">🎤 Falar</button>
+      </div>
+      <div class="controls">
+        <button class="btn ghost small" id="typeBtn">⌨️ Digitar em vez de falar</button>
       </div>
       <div class="controls">
         <button class="btn ghost small" id="repeat" style="display:none">🎤 Repetir</button>
@@ -152,7 +167,7 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v7</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v8</b> · fala livre → correção → pronúncia → revisão</footer>
 
   <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
   <script>
@@ -214,7 +229,7 @@
   if(SR){
     rec=new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=4;
     rec.onresult = e => { const alts=[...e.results[0]].map(r=>r.transcript);
-      if(recMode==='capture') onCaptured(alts[0]||''); else onShadow(alts); };
+      if(recMode==='capture') onCaptured(alts); else onShadow(alts); };
     rec.onerror = e => { stopMic();
       const el=shadowStatusEl||$('status');
       if(e.error==='no-speech') setEl(el,'info','Não ouvi 👂 — toque e fale de novo.');
@@ -316,12 +331,34 @@
   }
 
   // ================== PRATICAR ==================
-  async function onCaptured(text){
+  let lastAlts=[];                    // hipóteses do reconhecedor da última fala
+  // recebe a lista de alternativas do reconhecedor e mostra o campo editável
+  function onCaptured(alts){
     stopMic();
-    if(!text){ setEl($('status'),'info','Não entendi, tente de novo.'); return; }
+    alts=(alts||[]).map(s=>String(s||'').trim()).filter(Boolean);
+    if(!alts.length){ setEl($('status'),'info','Não entendi 👂 — toque e fale de novo, ou use ⌨️ Digitar.'); return; }
+    lastAlts=alts;
+    openCapture(alts[0], 'Você disse — confira e ajuste se precisar');
+  }
+  // abre o campo editável (usado tanto pela fala quanto pelo botão Digitar)
+  function openCapture(text, label){
+    lastAlts = text ? [...new Set([text, ...lastAlts])] : [];
+    $('captureLabel').textContent = label || 'Digite a frase em espanhol';
+    const inp=$('captureInput'); inp.value=text||'';
+    $('captureBox').style.display='block';
+    setEl($('status'),'',''); $('shadowFb').innerHTML='';
+    inp.focus(); try{ inp.setSelectionRange(inp.value.length, inp.value.length); }catch(_){}
+  }
+  function closeCapture(){ $('captureBox').style.display='none'; }
+  // envia a frase (editada ou não) + as hipóteses pro cérebro
+  async function sendCorrect(){
+    const text=$('captureInput').value.trim();
+    if(!text){ $('captureInput').focus(); return; }
+    closeCapture();
     setEl($('status'),'info','Pensando… 🤔'); $('said').textContent='Você disse: “'+text+'”';
+    const alts=[...new Set([text, ...lastAlts])].slice(0,5);
     try{
-      const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'correct',text})});
+      const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'correct',text,alts})});
       const res=await r.json();
       if(res.error){ setEl($('status'),'err','Erro: '+res.error); return; }
       showResult(res,text);
@@ -329,6 +366,7 @@
   }
   function showResult(res, saidText){
     current=res;
+    closeCapture();
     $('placeholder').style.display='none'; $('result').style.display='block';
     $('es').textContent=res.corrected; $('pt').textContent=res.translation_pt||''; $('note').textContent=res.note_pt||'';
     $('said').textContent=saidText?'Você disse: “'+saidText+'”':'';
@@ -357,7 +395,7 @@
       });
     }catch(e){ $('explanation').textContent='Sem conexão para explicar.'; }
   }
-  function resetPractice(){ current=null; $('result').style.display='none'; $('placeholder').style.display='block';
+  function resetPractice(){ current=null; closeCapture(); $('result').style.display='none'; $('placeholder').style.display='block';
     $('repeat').style.display='none'; $('why').style.display='none'; $('newp').style.display='none'; setEl($('status'),'',''); $('shadowFb').innerHTML=''; }
 
   // ================== FLASHCARDS + REVISÃO ESPAÇADA ==================
@@ -467,6 +505,10 @@
 
   // ================== Eventos ==================
   $('mic').onclick    = ()=> listening?stopMic():startMic('capture');
+  $('typeBtn').onclick   = ()=> openCapture('', 'Digite a frase em espanhol');
+  $('captureSend').onclick= sendCorrect;
+  $('captureRedo').onclick= ()=>{ closeCapture(); startMic('capture'); };
+  $('captureInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendCorrect(); } });
   $('listen').onclick = ()=> current?speak(current.corrected,0.9):setEl($('status'),'info','Fale uma frase primeiro.');
   $('repeat').onclick = async ()=>{ if(!current)return;
     const ok=await azAssess(current.corrected,$('shadowFb'),$('status'),$('mic'));
