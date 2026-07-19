@@ -168,7 +168,7 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v9</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v10</b> · fala livre → correção → pronúncia → revisão</footer>
 
   <script>
   // se o SDK da Azure não carregar pela URL principal, tenta um CDN alternativo
@@ -549,7 +549,18 @@
 
   if(!SR){ $('foot').innerHTML='⚠️ Sem reconhecimento de voz aqui. Abra no <b>Chrome (Android)</b>.'; }
   updateCount();
-  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  // Atualização automática: quando sair uma versão nova, o app recarrega sozinho.
+  if('serviceWorker' in navigator){
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(refreshing) return; refreshing=true; location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update();
+      setInterval(()=>reg.update().catch(()=>{}), 60*60*1000);   // checa update a cada 1h
+      document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reg.update().catch(()=>{}); });
+    }).catch(()=>{});
+  }
   </script>
 </body>
 </html>

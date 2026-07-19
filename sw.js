@@ -1,4 +1,4 @@
-const CACHE = 'shadow-es-v9';
+const CACHE = 'shadow-es-v10';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -7,7 +7,14 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
+// REDE PRIMEIRO: online sempre pega a versão mais nova; offline cai no cache.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin) return;   // deixa CDNs/externos (SDK Azure etc.) passarem direto
+  e.respondWith(
+    fetch(e.request)
+      .then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; })
+      .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
+  );
 });
