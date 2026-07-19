@@ -3,87 +3,131 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#8a1c34" />
+  <meta name="theme-color" content="#FAF6F4" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <title>Shadow ES — corretor de espanhol</title>
   <style>
     :root{
-      --bg:#0f172a; --card:#1e293b; --muted:#94a3b8; --text:#f1f5f9;
-      --accent:#8a1c34; --accent-lt:#e46a80; --ok:#22c55e; --err:#f87171; --line:#334155; --gold:#fbbf24;
+      --bg:#FAF6F4; --card:#FFFFFF; --muted:#8B8285; --text:#211A1C;
+      --accent:#8A1C34; --accent-lt:#B03651; --ok:#15803D; --err:#DC2626; --line:#ECE4E0; --gold:#B45309;
+      --shadow:0 1px 2px rgba(33,20,25,.05), 0 10px 26px rgba(33,20,25,.07);
+      --shadow-accent:0 6px 16px rgba(138,28,52,.26);
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;height:100%}
     body{
       background:var(--bg);color:var(--text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      -webkit-font-smoothing:antialiased;
       display:flex;flex-direction:column;min-height:100dvh;
-      padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
+      padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
     }
-    header{display:flex;align-items:center;justify-content:space-between;padding:12px 2px 6px}
-    header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.3px}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 8px}
+    header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.01em}
     .tabs{display:flex;gap:6px}
-    .tab{background:var(--line);color:var(--muted);border:none;border-radius:999px;padding:7px 14px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+    .tab{background:#F0E7E3;color:var(--muted);border:none;border-radius:999px;padding:7px 14px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;transition:background .15s}
     .tab.active{background:var(--accent);color:#fff}
-    main{flex:1;display:flex;flex-direction:column;max-width:560px;width:100%;margin:0 auto}
+    main{flex:1;display:flex;flex-direction:column;max-width:520px;width:100%;margin:0 auto}
     .view{display:none;flex:1;flex-direction:column}
     .view.active{display:flex}
-    #practice,#reviewPanel{justify-content:center;gap:14px}
+    #practice,#reviewPanel{justify-content:center;gap:16px}
     #practice{flex:1;justify-content:center}
 
-    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 18px}
-    .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
-    .es{font-size:27px;font-weight:800;line-height:1.25}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px 20px;box-shadow:var(--shadow)}
+    .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;margin-bottom:6px}
+    .es{font-size:30px;font-weight:800;line-height:1.16;letter-spacing:-.02em;text-wrap:balance}
     .pt{color:var(--muted);font-size:15px;margin-top:8px}
-    .note{color:var(--gold);font-size:14px;margin-top:10px}
-    .said{color:var(--muted);font-size:13px;font-style:italic;margin-top:6px}
-    .status{text-align:center;font-size:17px;font-weight:700;min-height:24px}
+    .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:11px 13px;font-size:14px;color:var(--text);margin-top:12px;line-height:1.45}
+    .note:empty{display:none}
+    .said{color:var(--muted);font-size:13px;font-style:italic;margin-top:10px}
+    .status{text-align:center;font-size:16px;font-weight:700;min-height:22px}
     .status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.info{color:var(--accent-lt)}
-    .fb{text-align:center;font-size:17px;line-height:1.7;margin-top:2px}
-    .fb .pct{display:block;font-weight:800;font-size:15px;margin-bottom:6px}
-    .fb .w{padding:0 1px;border-radius:4px}
+
+    /* feedback / nota */
+    .fb{display:flex;flex-direction:column;align-items:center;text-align:center;margin-top:2px}
+    .fb:empty{display:none}
+    .said-words{font-size:20px;font-weight:800;letter-spacing:-.01em;line-height:1.3;margin-bottom:6px}
     .fb .w.ok{color:var(--ok)}
-    .fb .w.bad{color:var(--err);text-decoration:underline;text-decoration-style:wavy}
-    .guide{text-align:center;color:var(--accent-lt);font-size:15px;font-weight:700;line-height:1.45;margin:2px 4px}
+    .fb .w.warn{color:var(--gold)}
+    .fb .w.bad{color:var(--err);text-decoration:underline;text-decoration-style:wavy;text-underline-offset:3px}
+    .ring{position:relative;width:150px;height:150px;margin:4px auto 2px}
+    .ring svg{transform:rotate(-90deg);width:150px;height:150px}
+    .ring-bg{fill:none;stroke:var(--line);stroke-width:12}
+    .ring-fg{fill:none;stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .6s ease}
+    .ring-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .ring-num{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+    .ring-den{font-size:12px;color:var(--muted);margin-top:2px}
+    .verdict{font-size:15px;font-weight:700;margin-top:2px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
+    .chip{font-size:11.5px;font-weight:600;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-variant-numeric:tabular-nums}
+    .src{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin-top:10px}
+    .src .ic{width:14px;height:14px}
+
+    .guide{text-align:center;color:var(--accent-lt);font-size:14.5px;font-weight:600;line-height:1.45;margin:2px 6px}
     .guide:empty{display:none}
-    .placeholder{text-align:center;color:var(--muted);font-size:15px;padding:8px 6px;line-height:1.5}
+    .placeholder{text-align:center;color:var(--text);font-size:19px;font-weight:600;padding:10px 8px;line-height:1.45;text-wrap:balance}
+    .placeholder b{color:var(--accent)}
+
+    /* botões */
     .controls{display:flex;gap:10px}
-    button.btn{font:inherit;border:none;border-radius:16px;padding:15px;cursor:pointer;font-weight:800;color:var(--text);background:var(--line);flex:1;transition:transform .05s}
+    .controls .btn{flex:1}
+    button.btn{display:flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-weight:700;
+      border:1px solid var(--line);border-radius:16px;padding:15px;cursor:pointer;color:var(--text);background:#fff;
+      box-shadow:var(--shadow);transition:transform .05s}
     button.btn:active{transform:scale(.97)}
-    button.btn:disabled{opacity:.4}
-    .mic{background:var(--accent);color:#fff;font-size:18px;flex:2}
-    .mic.listening{background:var(--err);color:#2a0808;animation:pulse 1s infinite}
-    .ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
-    .small{font-size:13px;padding:11px}
-    @keyframes pulse{50%{opacity:.65}}
+    button.btn:disabled{opacity:.45;box-shadow:none}
+    button.btn .ic{width:20px;height:20px;flex:none}
+    .mic{background:var(--accent);color:#fff;border-color:transparent;font-size:16px;box-shadow:var(--shadow-accent)}
+    .ghost{background:#fff;color:var(--text)}
+    .small{font-size:13px;padding:12px}
+    .btn.listening{animation:soft 1.3s ease-in-out infinite}
+    .ldot{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;animation:blink 1s infinite}
+    @keyframes blink{50%{opacity:.3}}
+    @keyframes soft{50%{opacity:.82}}
+    @media (prefers-reduced-motion:reduce){.btn.listening,.ldot{animation:none}}
+
+    /* ações secundárias = mini-cartões verticais */
+    #secondary .btn{flex-direction:column;gap:5px;padding:10px 4px;font-size:11px;font-weight:600;color:var(--muted)}
+    #secondary .btn .ic{width:20px;height:20px;color:var(--accent)}
+    #secondary .btn.mic{color:#fff}
+    #secondary .btn.mic .ic{color:#fff}
 
     /* explicação */
-    #explainBox{display:none;margin-top:2px}
-    #explainBox .ex{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;gap:8px;align-items:center}
+    #explainBox{display:none;margin-top:4px}
+    #explainBox .ex{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;gap:8px;align-items:center;box-shadow:var(--shadow)}
     #explainBox .ex .t{flex:1}
     #explainBox .ex .ees{font-weight:700}
     #explainBox .ex .ept{color:var(--muted);font-size:13px}
-    #explainBox .ex button{background:var(--line);border:none;color:var(--text);border-radius:8px;padding:8px 10px;cursor:pointer}
+    #explainBox .ex button{background:#F0E7E3;border:none;color:var(--accent);border-radius:9px;padding:8px;cursor:pointer;display:flex}
+    #explainBox .ex button .ic{width:18px;height:18px}
+
+    /* input de captura */
+    #captureInput{width:100%;background:#FBF8F6;border:1px solid var(--line);border-radius:12px;color:var(--text);
+      font:inherit;font-size:18px;font-weight:700;padding:13px;margin-top:8px}
+    #captureInput:focus{outline:none;border-color:var(--accent)}
 
     /* cards */
     #cardList{overflow:auto}
-    .dayhdr{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:12px 2px 6px}
-    .fc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .dayhdr{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin:14px 2px 8px}
+    .fc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;display:flex;align-items:center;gap:8px;margin-bottom:8px;box-shadow:var(--shadow)}
     .fc .txt{flex:1;min-width:0}
     .fc .fes{font-weight:700;font-size:15px}
     .fc .fpt{color:var(--muted);font-size:13px;margin-top:2px}
     .fc .due{font-size:11px;color:var(--muted);margin-top:3px}
-    .fc button{background:var(--line);border:none;color:var(--text);border-radius:10px;padding:9px 11px;font-size:15px;cursor:pointer;flex:none}
-    .empty{text-align:center;color:var(--muted);padding:30px 10px}
-    .reviewbar{background:linear-gradient(90deg,#6d1428,#a12540);color:#fff;border:none;border-radius:16px;padding:16px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;width:100%;margin:8px 0 12px}
-    .reviewbar.none{background:var(--card);color:var(--muted);border:1px solid var(--line);cursor:default}
-    footer{color:var(--muted);font-size:12px;text-align:center;padding:8px}
+    .fc button{background:#F0E7E3;border:none;color:var(--accent);border-radius:10px;padding:9px;cursor:pointer;flex:none;display:flex}
+    .fc button .ic{width:18px;height:18px}
+    .empty{text-align:center;color:var(--muted);padding:30px 10px;line-height:1.5}
+    .reviewbar{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:16px;padding:16px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;width:100%;margin:8px 0 12px;box-shadow:var(--shadow-accent)}
+    .reviewbar .ic{width:20px;height:20px}
+    .reviewbar.none{background:#fff;color:var(--muted);border:1px solid var(--line);cursor:default;box-shadow:none}
+    footer{color:var(--muted);font-size:12px;text-align:center;padding:10px}
   </style>
 </head>
 <body>
   <header>
-    <h1>Shadow&nbsp;ES 🇪🇸</h1>
+    <h1>Shadow&nbsp;ES</h1>
     <div class="tabs">
       <button class="tab active" id="tabPractice">Praticar</button>
       <button class="tab" id="tabCards">Cards <span id="cardCount">0</span></button>
@@ -95,8 +139,7 @@
     <section class="view active" id="practice">
       <div class="card" id="resultCard">
         <div class="placeholder" id="placeholder">
-          Toque em <b>Falar</b> e diga, em espanhol, a frase da sua dúvida.<br>
-          Eu te devolvo a forma correta pra você repetir. 🎧
+          Fale uma frase em espanhol e eu te devolvo a <b>forma certa</b> para você repetir.
         </div>
         <div id="result" style="display:none">
           <div class="label">Forma correta</div>
@@ -105,21 +148,20 @@
           <div class="note" id="note"></div>
           <div class="said" id="said"></div>
           <div id="explainBox">
-            <div class="note" id="explanation" style="color:var(--accent-lt)"></div>
+            <div class="note" id="explanation" style="border-left-color:var(--accent-lt)"></div>
             <div id="examples"></div>
           </div>
         </div>
       </div>
 
       <!-- transcrição editável (confira/ajuste antes de corrigir) -->
-      <div class="card" id="captureBox" style="display:none;padding:14px">
+      <div class="card" id="captureBox" style="display:none;padding:16px">
         <div class="label" id="captureLabel">Você disse — confira e ajuste se precisar</div>
         <input id="captureInput" type="text" lang="es" autocomplete="off" autocapitalize="sentences" spellcheck="false"
-          placeholder="Digite ou corrija a frase em espanhol…"
-          style="width:100%;background:#0b1220;border:1px solid var(--line);border-radius:12px;color:var(--text);font:inherit;font-size:18px;font-weight:700;padding:12px;margin-top:6px" />
+          placeholder="Digite ou corrija a frase em espanhol…" />
         <div class="controls" style="margin-top:10px">
-          <button class="btn ghost small" id="captureRedo">🎤 Falar de novo</button>
-          <button class="btn mic small" id="captureSend" style="flex:2">✓ Está certo →</button>
+          <button class="btn ghost small" id="captureRedo"></button>
+          <button class="btn mic small" id="captureSend" style="flex:2"></button>
         </div>
       </div>
 
@@ -130,7 +172,7 @@
       <div id="mainControls">
         <div class="guide" id="guide"></div>
         <div class="controls">
-          <button class="btn mic" id="primary">🎤 Falar</button>
+          <button class="btn mic" id="primary"></button>
         </div>
         <div class="controls" id="secondary"></div>
       </div>
@@ -152,8 +194,8 @@
         <div class="status" id="rvStatus"></div>
         <div class="fb" id="rvFb"></div>
         <div class="controls">
-          <button class="btn ghost" id="rvShow">🔊 Ouvir & ver</button>
-          <button class="btn mic" id="rvRepeat">🎤 Repetir</button>
+          <button class="btn ghost" id="rvShow"></button>
+          <button class="btn mic" id="rvRepeat"></button>
         </div>
         <div class="controls" id="rvGrades" style="display:none">
           <button class="btn small" id="rvAgain" style="color:var(--err)">De novo</button>
@@ -165,7 +207,7 @@
     </section>
   </main>
 
-  <footer id="foot">Shadow ES · <b>v13</b> · fala livre → correção → pronúncia → revisão</footer>
+  <footer id="foot">Shadow ES · <b>v14</b> · correção · pronúncia · revisão</footer>
 
   <script>
   // se o SDK da Azure não carregar pela URL principal, tenta um CDN alternativo
@@ -187,6 +229,23 @@
   let shadowTarget=null, shadowStatusEl=null, shadowMicBtn=null, shadowFbEl=null, shadowOnDone=null, shadowOnFail=null;
   let micWatch=null, shadowCanceled=false;
 
+  // -------- Ícones de linha (SVG) --------
+  const ICN={
+    mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3"/>',
+    speaker:'<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 8a5 5 0 0 1 0 8"/>',
+    pencil:'<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/>',
+    question:'<circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.8 2.8 0 0 1 5.4 1c0 1.9-2.6 2.3-2.6 3.7"/><path d="M12 17h.01"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    keyboard:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+    repeat:'<path d="M4 12a8 8 0 0 1 13-6l3 2"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13 6l-3-2"/><path d="M4 20v-4h4"/>',
+    check:'<path d="M5 12l4 4L19 7"/>',
+    target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>',
+    play:'<path d="M8 6l10 6-10 6z"/>',
+    trash:'<path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6.5 7l1 13h9l1-13"/>'
+  };
+  function ic(name){ return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(ICN[name]||'')+'</svg>'; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
   // -------- Voz (TTS) --------
   let esVoice=null;
   function pickVoice(){ const vs=speechSynthesis.getVoices(); esVoice=vs.find(v=>/es-ES/i.test(v.lang))||vs.find(v=>/^es/i.test(v.lang))||null; }
@@ -207,27 +266,31 @@
     while(i>0&&j>0){ if(t[i-1]===s[j-1]){matched[i-1]=true;i--;j--;} else if(dp[i-1][j]>=dp[i][j-1])i--; else j--; }
     return matched;
   }
-  // desenha % + frase colorida (verde=ok, vermelho ondulado=escapou)
+  function scoreColor(v){ return v>=75?'var(--ok)':v>=60?'var(--gold)':'var(--err)'; }
+  // anel de nota (SVG)
+  function ringHTML(score,label,color){
+    const r=62, C=2*Math.PI*r, off=C*(1-Math.max(0,Math.min(100,score))/100);
+    return '<div class="ring"><svg viewBox="0 0 150 150">'
+      +'<circle class="ring-bg" cx="75" cy="75" r="'+r+'"/>'
+      +'<circle class="ring-fg" cx="75" cy="75" r="'+r+'" style="stroke:'+color+';stroke-dasharray:'+C.toFixed(1)+';stroke-dashoffset:'+off.toFixed(1)+'"/>'
+      +'</svg><div class="ring-val"><div class="ring-num" style="color:'+color+'">'+score+'</div><div class="ring-den">'+label+'</div></div></div>';
+  }
+  // Plano B (modo básico): compara palavras reconhecidas com o alvo
   function renderScore(fbEl, statusEl, said, target){
     const t=norm(target).split(' ').filter(Boolean);
     const matched=alignWords(t, norm(said||'').split(' ').filter(Boolean));
     const nOk=matched.filter(Boolean).length;
     const pct=Math.round(100*nOk/Math.max(1,t.length));
     if(statusEl) setEl(statusEl,'','');
-    fbEl.className='fb'; fbEl.innerHTML='';
-    const head=document.createElement('span'); head.className='pct';
-    head.textContent = pct+'%  '+(pct>=90?'¡Excelente! 🎉':pct>=75?'¡Muy bien! 👏':pct>=50?'Casi, repite 💪':'Escucha y repite 👂');
-    head.style.color = pct>=75?'var(--ok)':pct>=50?'var(--gold)':'var(--err)';
-    fbEl.appendChild(head);
-    let ti=0;
-    for(const w of target.split(/\s+/)){
-      const nw=norm(w); const sp=document.createElement('span'); sp.className='w'; sp.textContent=w+' ';
-      if(nw){ sp.classList.add(matched[ti]?'ok':'bad'); ti++; }
-      fbEl.appendChild(sp);
-    }
-    const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
-    sub.textContent='⚙️ modo básico' + (azFailReason ? ' · Azure ✗ '+azFailReason : ' (sem Azure)');
-    fbEl.appendChild(sub);
+    const col=scoreColor(pct);
+    let ti=0, wordsStr='';
+    for(const w of target.split(/\s+/)){ const nw=norm(w); let cls=''; if(nw){cls=matched[ti]?'ok':'bad';ti++;} wordsStr+='<span class="w '+cls+'">'+esc(w)+'</span> '; }
+    const verdict=pct>=90?'¡Excelente!':pct>=75?'¡Muy bien!':pct>=50?'Casi, repite':'Escucha y repite';
+    const sub='Modo básico'+(azFailReason?' · Azure indisponível: '+esc(azFailReason):'');
+    fbEl.className='fb';
+    fbEl.innerHTML='<div class="said-words">'+wordsStr+'</div>'+ringHTML(pct,'Palavras',col)
+      +'<div class="verdict" style="color:'+col+'">'+verdict+'</div>'
+      +'<div class="src" style="color:var(--muted)">'+ic('target')+'<span>'+sub+'</span></div>';
     speak(target, pct>=75?0.98:0.85);
   }
 
@@ -240,7 +303,7 @@
       if(recMode==='capture') onCaptured(alts); else onShadow(alts); };
     rec.onerror = e => { stopMic();
       const el=shadowStatusEl||$('status');
-      if(e.error==='no-speech') setEl(el,'info','Não ouvi 👂 — toque e fale de novo.');
+      if(e.error==='no-speech') setEl(el,'info','Não ouvi — toque e fale de novo.');
       else if(e.error==='not-allowed') setEl(el,'err','Libere o microfone nas permissões do site.');
       else setEl(el,'info','Tente de novo.'); };
     rec.onend = () => stopMic();
@@ -249,17 +312,17 @@
     if(!rec){ setEl($('status'),'err','Use o Chrome no Android (sem reconhecimento de voz aqui).'); if(opts.onFail)opts.onFail(); return; }
     recMode=mode; shadowTarget=opts.target||null; shadowStatusEl=opts.statusEl||null; shadowMicBtn=opts.micBtn||$('primary'); shadowFbEl=opts.fbEl||null; shadowOnDone=opts.onDone||null; shadowOnFail=opts.onFail||null; shadowCanceled=false;
     if(shadowFbEl) shadowFbEl.innerHTML='';
-    listening=true; shadowMicBtn.classList.add('listening'); shadowMicBtn.dataset.old=shadowMicBtn.textContent; shadowMicBtn.textContent='● Ouvindo… (toque p/ parar)';
+    listening=true; shadowMicBtn.classList.add('listening'); shadowMicBtn.dataset.oldhtml=shadowMicBtn.innerHTML; shadowMicBtn.innerHTML='<span class="ldot"></span>Ouvindo… (toque p/ parar)';
     setEl(shadowStatusEl||$('status'),'info', mode==='capture'?'Fale sua frase…':'Repita a frase…');
     try{ rec.start(); }
     catch(e){ // já ativo/erro -> não deixa preso
-      const f=shadowOnFail; stopMic(); setEl(shadowStatusEl||$('status'),'info','Não consegui abrir o microfone 👂 — tente de novo.'); if(f)f(); return; }
+      const f=shadowOnFail; stopMic(); setEl(shadowStatusEl||$('status'),'info','Não consegui abrir o microfone — tente de novo.'); if(f)f(); return; }
     // trava-morta: se em 12s nada voltar (nem resultado, nem erro), destrava
     clearTimeout(micWatch);
     micWatch=setTimeout(()=>{ if(!listening)return; const f=shadowOnFail; stopMic();
-      setEl(shadowStatusEl||$('status'),'info','Não consegui ouvir 👂 — toque e tente de novo.'); if(f)f(); }, 12000);
+      setEl(shadowStatusEl||$('status'),'info','Não consegui ouvir — toque e tente de novo.'); if(f)f(); }, 12000);
   }
-  function stopMic(){ listening=false; clearTimeout(micWatch); const b=shadowMicBtn||$('primary'); b.classList.remove('listening'); if(b.dataset.old)b.textContent=b.dataset.old; try{rec&&rec.stop();}catch(_){} }
+  function stopMic(){ listening=false; clearTimeout(micWatch); const b=shadowMicBtn||$('primary'); b.classList.remove('listening'); if(b.dataset.oldhtml){b.innerHTML=b.dataset.oldhtml; delete b.dataset.oldhtml;} try{rec&&rec.stop();}catch(_){} }
   function onShadow(alts){
     stopMic(); if(!shadowTarget||shadowCanceled)return;
     let best=-1,bestA=''; for(const a of alts){ const sc=sim(a,shadowTarget); if(sc>best){best=sc;bestA=a;} }
@@ -301,13 +364,13 @@
       pa.applyTo(recognizer);
     }catch(e){ azFailReason='config: '+((e&&e.message)||'erro').slice(0,60); return 'fallback'; }
 
-    const oldLabel=micBtn.textContent; micBtn.classList.add('listening'); micBtn.textContent='● Ouvindo… (toque p/ parar)';
-    setEl(statusEl,'info','Fale agora… 🎧'); if(fbEl) fbEl.innerHTML='';
+    const oldHtml=micBtn.innerHTML; micBtn.classList.add('listening'); micBtn.innerHTML='<span class="ldot"></span>Ouvindo… (toque p/ parar)';
+    setEl(statusEl,'info','Fale agora…'); if(fbEl) fbEl.innerHTML='';
     return new Promise(resolve=>{
       let done=false;
       const finish=(code)=>{
         if(done) return; done=true; azCancel=null; clearTimeout(to);
-        micBtn.classList.remove('listening'); micBtn.textContent=oldLabel;
+        micBtn.classList.remove('listening'); micBtn.innerHTML=oldHtml;
         try{ recognizer.close(); }catch(_){}
         resolve(code);
       };
@@ -321,7 +384,7 @@
           if(result.reason===SDK.ResultReason.RecognizedSpeech){
             renderAzScore(fbEl, statusEl, SDK.PronunciationAssessmentResult.fromResult(result), target);
           } else if(result.reason===SDK.ResultReason.NoMatch){
-            setEl(statusEl,'info','Não ouvi bem 👂 — toque em Repetir e tente de novo.'); code='nomatch';
+            setEl(statusEl,'info','Não ouvi bem — toque em Repetir e tente de novo.'); code='nomatch';
           } else {                     // Canceled (mic/token) -> Plano B
             code='fallback';
             try{ const cd=SDK.CancellationDetails.fromResult(result);
@@ -341,27 +404,24 @@
     // NOTA PRINCIPAL = PRECISÃO dos sons (o que "pronúncia" realmente é).
     // A média geral da Azure (pronunciationScore) infla por fluência/completude, então não serve de nota.
     const overall=Math.round(pa.accuracyScore!=null?pa.accuracyScore:(pa.pronunciationScore||0));
-    fbEl.className='fb'; fbEl.innerHTML='';
-    const head=document.createElement('span'); head.className='pct';
-    head.textContent=overall+'/100  '+(overall>=90?'¡Excelente! 🎉':overall>=75?'¡Muy bien! 👏':overall>=60?'Casi 💪':'Sigue practicando 👂');
-    head.style.color=overall>=75?'var(--ok)':overall>=60?'var(--gold)':'var(--err)';
-    fbEl.appendChild(head);
+    const col=scoreColor(overall);
     const words=(pa.detailResult&&pa.detailResult.Words)?pa.detailResult.Words:[];
+    let wordsStr='';
     if(words.length){
       for(const w of words){
-        const a=w.PronunciationAssessment||{}; const acc=a.AccuracyScore!=null?a.AccuracyScore:100; const err=a.ErrorType||'None';
-        const sp=document.createElement('span'); sp.className='w'; sp.textContent=w.Word+' ';
-        if(err==='Omission'||acc<60) sp.classList.add('bad');
-        else if(acc>=80) sp.classList.add('ok');
-        else sp.style.color='var(--gold)';
-        fbEl.appendChild(sp);
+        const a=w.PronunciationAssessment||{}; const acc=a.AccuracyScore!=null?a.AccuracyScore:100; const er=a.ErrorType||'None';
+        let cls='warn'; if(er==='Omission'||acc<60) cls='bad'; else if(acc>=80) cls='ok';
+        wordsStr+='<span class="w '+cls+'">'+esc(w.Word)+'</span> ';
       }
-    } else { fbEl.appendChild(document.createTextNode(target)); }
-    const sub=document.createElement('div'); sub.style.cssText='color:var(--muted);font-size:12px;margin-top:6px';
-    const parts=[`🎯 Azure · Precisão ${overall}`,`Fluência ${Math.round(pa.fluencyScore||0)}`,`Completude ${Math.round(pa.completenessScore||0)}`];
-    if(pa.prosodyScore!=null) parts.push(`Prosódia ${Math.round(pa.prosodyScore)}`);
-    sub.textContent=parts.join(' · ');
-    fbEl.appendChild(sub);
+    } else { wordsStr=esc(target); }
+    const verdict=overall>=90?'¡Excelente!':overall>=75?'¡Muy bien!':overall>=60?'Casi':'Sigue practicando';
+    let chips='<span class="chip">Fluência '+Math.round(pa.fluencyScore||0)+'</span><span class="chip">Completude '+Math.round(pa.completenessScore||0)+'</span>';
+    if(pa.prosodyScore!=null) chips+='<span class="chip">Prosódia '+Math.round(pa.prosodyScore)+'</span>';
+    fbEl.className='fb';
+    fbEl.innerHTML='<div class="said-words">'+wordsStr+'</div>'+ringHTML(overall,'Precisión',col)
+      +'<div class="verdict" style="color:'+col+'">'+verdict+'</div>'
+      +'<div class="chips">'+chips+'</div>'
+      +'<div class="src">'+ic('target')+'<span>Avaliado pela Azure</span></div>';
     speak(target, overall>=75?0.98:0.85);
   }
 
@@ -370,34 +430,34 @@
   let lastSent='';                    // o texto que foi realmente enviado ao cérebro
 
   // ---- fluxo guiado: em cada passo, UMA ação principal óbvia + secundárias ----
-  function addBtn(txt, fn, cls){
-    const b=document.createElement('button'); b.className='btn '+(cls||'ghost')+' small'; b.textContent=txt; b.onclick=fn;
+  function addBtn(name, label, fn, cls){
+    const b=document.createElement('button'); b.className='btn '+(cls||'ghost')+' small'; b.innerHTML=ic(name)+'<span>'+label+'</span>'; b.onclick=fn;
     $('secondary').appendChild(b); return b;
   }
   function setStep(s){
     const prim=$('primary'), sec=$('secondary'), guide=$('guide');
     sec.innerHTML=''; guide.textContent='';
     if(s==='idle'){
-      prim.className='btn mic'; prim.textContent='🎤 Falar';
+      prim.className='btn mic'; prim.innerHTML=ic('mic')+'<span>Falar</span>';
       prim.onclick=()=> listening?stopMic():startMic('capture');
-      addBtn('⌨️ Digitar', ()=>openCapture('', 'Digite a frase em espanhol'));
+      addBtn('keyboard','Digitar', ()=>openCapture('', 'Digite a frase em espanhol'));
     } else if(s==='corrected'){
-      prim.className='btn mic'; prim.textContent='🎤 Repetir e ver nota';
+      prim.className='btn mic'; prim.innerHTML=ic('mic')+'<span>Repetir e ver nota</span>';
       prim.onclick=repeatPractice;
       guide.textContent = (current&&current.wasCorrect)
-        ? '✅ Você acertou! Agora repita em voz alta pra fixar e ganhar sua nota.'
-        : '👉 Ouça a forma certa e repita em voz alta pra ganhar sua nota de pronúncia.';
-      addBtn('🔊 Ouvir', ()=> current&&speak(current.corrected,0.9));
-      addBtn('✏️ Corrigir', ()=> openCapture(lastSent, 'Corrija o que você quis dizer'));
-      addBtn('🤔 Por quê?', explainCurrent);
-      addBtn('＋ Nova', resetPractice);
+        ? 'Você acertou! Repita em voz alta para fixar e ganhar sua nota.'
+        : 'Ouça a forma certa e repita em voz alta para ganhar sua nota.';
+      addBtn('speaker','Ouvir', ()=> current&&speak(current.corrected,0.9));
+      addBtn('pencil','Corrigir', ()=> openCapture(lastSent, 'Corrija o que você quis dizer'));
+      addBtn('question','Por quê', explainCurrent);
+      addBtn('plus','Nova', resetPractice);
     } else if(s==='scored'){
-      prim.className='btn ghost'; prim.textContent='🔁 Repetir';
+      prim.className='btn ghost'; prim.innerHTML=ic('repeat')+'<span>Repetir</span>';
       prim.onclick=repeatPractice;
-      guide.textContent='Ouça de novo e repita quantas vezes quiser. Quando quiser, vá pra próxima. 👇';
-      addBtn('🔊 Ouvir', ()=> current&&speak(current.corrected,0.9));
-      addBtn('🤔 Por quê?', explainCurrent);
-      addBtn('＋ Nova frase', resetPractice, 'mic');
+      guide.textContent='Ouça de novo e repita quantas vezes quiser. Quando quiser, vá para a próxima.';
+      addBtn('speaker','Ouvir', ()=> current&&speak(current.corrected,0.9));
+      addBtn('question','Por quê', explainCurrent);
+      addBtn('plus','Nova frase', resetPractice, 'mic');
     }
   }
   // repetir a frase correta e ganhar a nota (Azure; se falhar, Plano B do navegador)
@@ -424,7 +484,7 @@
   function onCaptured(alts){
     stopMic();
     alts=(alts||[]).map(s=>String(s||'').trim()).filter(Boolean);
-    if(!alts.length){ setEl($('status'),'info','Não entendi 👂 — toque e fale de novo, ou use ⌨️ Digitar.'); return; }
+    if(!alts.length){ setEl($('status'),'info','Não entendi — toque e fale de novo, ou use Digitar.'); return; }
     lastAlts=alts;
     openCapture(alts[0], 'Você disse — confira e ajuste se precisar');
   }
@@ -443,7 +503,7 @@
     const text=$('captureInput').value.trim();
     if(!text){ $('captureInput').focus(); return; }
     lastSent=text; closeCapture();
-    setEl($('status'),'info','Pensando… 🤔'); $('said').textContent='Você disse: “'+text+'”';
+    setEl($('status'),'info','Pensando…'); $('said').textContent='Você disse: “'+text+'”';
     const alts=[...new Set([text, ...lastAlts])].slice(0,5);
     try{
       const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'correct',text,alts})});
@@ -459,13 +519,13 @@
     $('es').textContent=res.corrected; $('pt').textContent=res.translation_pt||''; $('note').textContent=res.note_pt||'';
     $('said').textContent=saidText?'Você disse: “'+saidText+'”':'';
     $('explainBox').style.display='none'; $('explanation').textContent=''; $('examples').innerHTML=''; $('shadowFb').innerHTML='';
-    setEl($('status'),res.wasCorrect?'ok':'info',res.wasCorrect?'¡Perfecto! 🎉':'Forma correta 👇');
+    setEl($('status'),res.wasCorrect?'ok':'info',res.wasCorrect?'¡Perfecto!':'Forma correta');
     setStep('corrected');
     speak(res.corrected,0.95); saveCard(res); updateCount();
   }
   async function explainCurrent(){
     if(!current)return;
-    $('explainBox').style.display='block'; $('explanation').textContent='Buscando explicação… 🤔'; $('examples').innerHTML='';
+    $('explainBox').style.display='block'; $('explanation').textContent='Buscando explicação…'; $('examples').innerHTML='';
     try{
       const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'explain',phrase:current.corrected})});
       const res=await r.json();
@@ -478,7 +538,7 @@
         const a=document.createElement('div'); a.className='ees'; a.textContent=ex.es;
         const b=document.createElement('div'); b.className='ept'; b.textContent=ex.pt;
         t.appendChild(a); t.appendChild(b);
-        const btn=document.createElement('button'); btn.textContent='🔊'; btn.onclick=()=>speak(ex.es,0.95);
+        const btn=document.createElement('button'); btn.innerHTML=ic('speaker'); btn.onclick=()=>speak(ex.es,0.95);
         d.appendChild(t); d.appendChild(btn); box.appendChild(d);
       });
     }catch(e){ $('explanation').textContent='Sem conexão para explicar.'; }
@@ -519,11 +579,11 @@
   function renderCards(){
     updateCount();
     const n=dueCount(); const bar=$('reviewBar');
-    if(n>0){ bar.className='reviewbar'; bar.textContent='▶ Revisar agora ('+n+')'; bar.disabled=false; }
-    else   { bar.className='reviewbar none'; bar.textContent='✅ Nada para revisar por enquanto'; bar.disabled=true; }
+    if(n>0){ bar.className='reviewbar'; bar.innerHTML=ic('repeat')+'<span>Revisar agora ('+n+')</span>'; bar.disabled=false; }
+    else   { bar.className='reviewbar none'; bar.innerHTML='<span>Nada para revisar por enquanto</span>'; bar.disabled=true; }
 
     const cards=loadCards(); const box=$('cardList');
-    if(!cards.length){ box.innerHTML='<div class="empty">Ainda não há cards.<br>Pratique uma frase que ela aparece aqui. 😉</div>'; return; }
+    if(!cards.length){ box.innerHTML='<div class="empty">Ainda não há cards.<br>Pratique uma frase que ela aparece aqui.</div>'; return; }
     const groups={}; for(const c of cards){(groups[c.day]=groups[c.day]||[]).push(c);}
     const fmtDay=d=>{const t=new Date().toISOString().slice(0,10);const y=new Date(Date.now()-DAY).toISOString().slice(0,10);
       if(d===t)return'Hoje';if(d===y)return'Ontem';const[Y,M,D]=d.split('-');return `${D}/${M}/${Y}`;};
@@ -537,10 +597,10 @@
         const t=document.createElement('div'); t.className='txt';
         const a=document.createElement('div'); a.className='fes'; a.textContent=c.es;
         const b=document.createElement('div'); b.className='fpt'; b.textContent=c.pt;
-        const du=document.createElement('div'); du.className='due'; du.textContent='⏱ '+fmtDue(c.srs.due);
+        const du=document.createElement('div'); du.className='due'; du.textContent=fmtDue(c.srs.due);
         t.append(a,b,du); t.onclick=()=>speak(c.es,0.95);
-        const play=document.createElement('button'); play.textContent='🔊'; play.onclick=()=>speak(c.es,0.95);
-        const del=document.createElement('button'); del.textContent='🗑'; del.onclick=()=>{ if(confirm('Apagar este card?')){ const all=loadCards().filter(x=>x.ts!==c.ts); persistCards(all); renderCards(); } };
+        const play=document.createElement('button'); play.innerHTML=ic('speaker'); play.onclick=()=>speak(c.es,0.95);
+        const del=document.createElement('button'); del.innerHTML=ic('trash'); del.onclick=()=>{ if(confirm('Apagar este card?')){ const all=loadCards().filter(x=>x.ts!==c.ts); persistCards(all); renderCards(); } };
         el.append(t,play,del); box.appendChild(el);
       }
     }
@@ -592,6 +652,10 @@
   }
 
   // ================== Eventos ==================
+  $('captureRedo').innerHTML=ic('mic')+'<span>Falar de novo</span>';
+  $('captureSend').innerHTML=ic('check')+'<span>Está certo</span>';
+  $('rvShow').innerHTML=ic('speaker')+'<span>Ouvir & ver</span>';
+  $('rvRepeat').innerHTML=ic('mic')+'<span>Repetir</span>';
   $('captureSend').onclick= sendCorrect;
   $('captureRedo').onclick= ()=>{ closeCapture(); startMic('capture'); };
   $('captureInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendCorrect(); } });
@@ -602,13 +666,13 @@
   $('rvRepeat').onclick   = async ()=>{ const c=reviewQueue&&reviewQueue[0]; if(!c)return; revealReview();
     const code=await azAssess(c.es,$('rvFb'),$('rvStatus'),$('rvRepeat'));
     if(code==='fallback') startMic('shadow',{target:c.es,statusEl:$('rvStatus'),micBtn:$('rvRepeat'),fbEl:$('rvFb'),
-      onFail:()=>setEl($('rvStatus'),'info','Não consegui ouvir 👂 — toque em Repetir.')}); };
+      onFail:()=>setEl($('rvStatus'),'info','Não consegui ouvir — toque em Repetir.')}); };
   $('rvAgain').onclick    = ()=>gradeReview('again');
   $('rvGood').onclick     = ()=>gradeReview('good');
   $('rvEasy').onclick     = ()=>gradeReview('easy');
   $('rvQuit').onclick     = ()=>endReview(false);
 
-  if(!SR){ $('foot').innerHTML='⚠️ Sem reconhecimento de voz aqui. Abra no <b>Chrome (Android)</b>.'; }
+  if(!SR){ $('foot').innerHTML='Sem reconhecimento de voz aqui. Abra no <b>Chrome (Android)</b>.'; }
   updateCount();
   setStep('idle');
   // Atualização automática: quando sair uma versão nova, o app recarrega sozinho.
